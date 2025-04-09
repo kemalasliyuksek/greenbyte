@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GreenByte Sera Dashboard</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* GreenByte branding için ek stiller */
+        .greenbyte-logo {
+            display: flex;
+            align-items: center;
+        }
+        
+        /* Sidebar marka alanı için flex düzenleme */
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+        }
+        
+        /* Toggle menü düğmesi için stil */
+        .toggle-menu {
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+        
+        .toggle-menu:hover {
+            background-color: rgba(0,0,0,0.05);
+        }
+        
+        /* Ana içerik bölümünü düzenlemek için */
+        .main-content {
+            transition: all var(--animation-speed) ease;
+            min-height: 100vh;
+            width: calc(100% - 250px);
+        }
+        
+        /* Sayfa içeriği için padding düzeltmesi */
+        .page-content {
+            padding-top: 10px;
+        }
+
+        /* Mobil görünümde başlık düzeltmeleri */
+        @media (max-width: 768px) {
+            .dashboard-title {
+                font-size: 1.2rem;
+                margin: 1rem 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar" style="width: 250px;">
+        <div class="sidebar-brand d-flex align-items-center">
+            <i class="fas fa-leaf fa-2x me-2"></i>
+            <h2>GreenByte</h2>
+        </div>
+        <div class="sidebar-menu">
+            <a href="#" class="sidebar-item active" data-page="dashboard">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="#" class="sidebar-item" data-page="temperature">
+                <i class="fas fa-thermometer-half"></i>
+                <span>Sıcaklık Kontrol</span>
+            </a>
+            <a href="#" class="sidebar-item" data-page="humidity">
+                <i class="fas fa-tint"></i>
+                <span>Nem Kontrol</span>
+            </a>
+            <a href="#" class="sidebar-item" data-page="lighting">
+                <i class="fas fa-lightbulb"></i>
+                <span>Aydınlatma</span>
+            </a>
+            <a href="#" class="sidebar-item" data-page="plants">
+                <i class="fas fa-seedling"></i>
+                <span>Bitki Durumu</span>
+            </a>
+            <a href="#" class="sidebar-item" data-page="cameras">
+                <i class="fas fa-camera"></i>
+                <span>Kamera Görüntüleri</span>
+            </a>
+            <a href="#" class="sidebar-item" data-page="history">
+                <i class="fas fa-history"></i>
+                <span>Geçmiş Veriler</span>
+            </a>
+            <a href="#" class="sidebar-item" data-page="settings">
+                <i class="fas fa-cog"></i>
+                <span>Ayarlar</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content" style="margin-left: 250px;">
+        <div class="topbar">
+            <div class="toggle-menu">
+                <i class="fas fa-bars"></i>
+            </div>
+            <div class="search-bar">
+                <i class="fas fa-search"></i>
+                <input type="text" placeholder="Ara...">
+            </div>
+            <div class="user-info">
+                <div class="user-avatar">
+                    <span>AS</span>
+                </div>
+                <div class="user-details">
+                    <div class="user-name">Admin</div>
+                    <div class="user-role">Yönetici</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Content -->
+        <div id="dashboard-content" class="page-content">
+            <div class="container-fluid px-4">
+                <h1 class="dashboard-title animate-fadein">GreenByte Sera Kontrol Paneli</h1>
+                
+                <!-- Overview Cards -->
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="dashboard-card animate-fadein delay-1">
+                            <div class="card-icon">
+                                <i class="fas fa-thermometer-half"></i>
+                            </div>
+                            <div class="card-title">SICAKLIK</div>
+                            <div class="card-value">24.5°C</div>
+                            <div class="card-change positive">
+                                <i class="fas fa-arrow-up"></i> 1.2°C (24s)
+                            </div>
+                            <div class="chart-bg-icon">
+                                <i class="fas fa-thermometer-half"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="dashboard-card animate-fadein delay-2">
+                            <div class="card-icon">
+                                <i class="fas fa-tint"></i>
+                            </div>
+                            <div class="card-title">NEM</div>
+                            <div class="card-value">68%</div>
+                            <div class="card-change negative">
+                                <i class="fas fa-arrow-down"></i> 3% (15d)
+                            </div>
+                            <div class="chart-bg-icon">
+                                <i class="fas fa-tint"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="dashboard-card animate-fadein delay-3">
+                            <div class="card-icon">
+                                <i class="fas fa-lightbulb"></i>
+                            </div>
+                            <div class="card-title">IŞIK SEVİYESİ</div>
+                            <div class="card-value">856 lux</div>
+                            <div class="card-change positive">
+                                <i class="fas fa-arrow-up"></i> 120 lux (5d)
+                            </div>
+                            <div class="chart-bg-icon">
+                                <i class="fas fa-lightbulb"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="dashboard-card animate-fadein delay-4">
+                            <div class="card-icon">
+                                <i class="fas fa-water"></i>
+                            </div>
+                            <div class="card-title">TOPRAK NEMİ</div>
+                            <div class="card-value">72%</div>
+                            <div class="card-change positive">
+                                <i class="fas fa-arrow-up"></i> 5% (1s)
+                            </div>
+                            <div class="chart-bg-icon">
+                                <i class="fas fa-water"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Charts Section -->
+                <div class="row mt-4">
+                    <div class="col-lg-8">
+                        <div class="dashboard-card animate-fadein">
+                            <h5>24 Saatlik Sıcaklık ve Nem Grafiği</h5>
+                            <div class="chart-container">
+                                <canvas id="tempHumidityChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="dashboard-card animate-fadein">
+                            <h5>Sistem Durumu</h5>
+                            <div class="mt-4">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div>
+                                        <span class="status-indicator status-active"></span>
+                                        <span>Sıcaklık Kontrol</span>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" checked>
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div>
+                                        <span class="status-indicator status-active"></span>
+                                        <span>Nem Kontrol</span>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" checked>
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div>
+                                        <span class="status-indicator status-active"></span>
+                                        <span>Işık Kontrol</span>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" checked>
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div>
+                                        <span class="status-indicator status-warning"></span>
+                                        <span>Sulama Sistemi</span>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" checked>
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <span class="status-indicator status-active"></span>
+                                        <span>Havalandırma</span>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" checked>
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Bottom Row -->
+                <div class="row mt-4">
+                    <div class="col-lg-4">
+                        <div class="dashboard-card animate-fadein">
+                            <h5>Bitki Gelişim Durumu</h5>
+                            <div class="mt-3">
+                                <div class="mb-3">
+                                    <small>Çeri Domates (Bölge A)</small>
+                                    <div class="progress">
+                                        <div class="progress-bar" role="progressbar" style="width: 75%" aria-valuenow="75" aria-valuemin="0" aria-valuemax="100"></div>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <small>Büyüme: %75</small>
+                                        <small>Est. Hasat: 15 gün</small>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <small>Menekşe (Bölge B)</small>
+                                    <div class="progress">
+                                        <div class="progress-bar bg-purple" role="progressbar" style="width: 65%" aria-valuenow="65" aria-valuemin="0" aria-valuemax="100"></div>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <small>Büyüme: %65</small>
+                                        <small>Est. Çiçeklenme: 10 gün</small>
+                                    </div>
+                                </div>
+                                <div>
+                                    <small>Çeri Domates (Bölge C)</small>
+                                    <div class="progress">
+                                        <div class="progress-bar" role="progressbar" style="width: 90%" aria-valuenow="90" aria-valuemin="0" aria-valuemax="100"></div>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <small>Büyüme: %90</small>
+                                        <small>Est. Hasat: 3 gün</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="dashboard-card animate-fadein">
+                            <h5>CO2 Seviyesi</h5>
+                            <div class="gauge-container mt-3">
+                                <div class="gauge-bg">
+                                    <div class="gauge-fill" id="co2Fill" style="height: 60%;"></div>
+                                    <div class="gauge-indicator" id="co2Indicator" style="transform: rotate(108deg);"></div>
+                                    <div class="gauge-center"></div>
+                                </div>
+                                <div class="gauge-value">750 ppm</div>
+                                <div class="gauge-label">Optimize Seviye: 800-1200 ppm</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="dashboard-card animate-fadein">
+                            <h5>Su Tüketimi</h5>
+                            <div class="chart-container">
+                                <canvas id="waterUsageChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Recent Activity and Alerts -->
+                <div class="row mt-4 mb-5">
+                    <div class="col-lg-6">
+                        <div class="dashboard-card animate-fadein">
+                            <h5>Son Aktiviteler</h5>
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Tarih</th>
+                                            <th>İşlem</th>
+                                            <th>Durum</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>19.03.2025 10:24</td>
+                                            <td>Çeri Domates Sulama Sistemi Çalıştırıldı</td>
+                                            <td><span class="badge bg-success">Tamamlandı</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td>19.03.2025 09:15</td>
+                                            <td>Menekşe Bölgesi Nem Kontrolü Ayarlandı</td>
+                                            <td><span class="badge bg-success">Tamamlandı</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td>19.03.2025 08:30</td>
+                                            <td>Havalandırma Açıldı</td>
+                                            <td><span class="badge bg-success">Tamamlandı</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td>19.03.2025 08:00</td>
+                                            <td>Günlük Sistem Kontrolü</td>
+                                            <td><span class="badge bg-success">Tamamlandı</span></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="dashboard-card animate-fadein">
+                            <h5>Uyarılar ve Bildirimler</h5>
+                            <div class="alert alert-warning d-flex align-items-center mt-3">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <div>
+                                    <strong>Düşük Su Seviyesi:</strong> Sulama tankındaki su seviyesi %20'ye düştü. Yeniden doldurun.
+                                </div>
+                            </div>
+                            <div class="alert alert-info d-flex align-items-center">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <div>
+                                    <strong>Sistem Güncellemesi:</strong> Yarın 03:00'da otomatik güncelleme gerçekleşecek.
+                                </div>
+                            </div>
+                            <div class="alert alert-success d-flex align-items-center">
+                                <i class="fas fa-check-circle me-2"></i>
+                                <div>
+                                    <strong>Hasat Zamanı:</strong> Bölge C'deki Çeri Domatesler hasat için hazır.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Sıcaklık Kontrol Sayfası - Optimize Edilmiş -->
+        <div id="temperature-content" class="page-content temp-humid-page" style="display: none;">
+            <div class="container-fluid px-4">
+                <h1 class="dashboard-title animate-fadein">Sıcaklık Kontrol</h1>
+                <div class="row">
+                    <div class="col-lg-8">
+                        <div class="dashboard-card">
+                            <h5>Sıcaklık Ayarları</h5>
+                            <div>
+                                <div class="mb-3">
+                                    <label for="tempRange" class="form-label">İstenen Sıcaklık: <span id="tempValue">24</span>°C</label>
+                                    <input type="range" class="form-range" min="15" max="35" value="24" id="tempRange" oninput="document.getElementById('tempValue').textContent = this.value">
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="autoTemp" checked>
+                                    <label class="form-check-label" for="autoTemp">Otomatik Sıcaklık Kontrolü</label>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-2">
+                                        <label for="minTemp" class="form-label">Minimum Sıcaklık</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="minTemp" value="20">
+                                            <span class="input-group-text">°C</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 mb-2">
+                                        <label for="maxTemp" class="form-label">Maksimum Sıcaklık</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="maxTemp" value="28">
+                                            <span class="input-group-text">°C</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button class="btn btn-primary mt-2" onclick="saveSettings('temperature')">Ayarları Kaydet</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4 side-cards">
+                        <div class="dashboard-card">
+                            <h5>Mevcut Sıcaklık</h5>
+                            <div class="sensor-display">
+                                <i class="fas fa-thermometer-half text-primary"></i>
+                                <h2>24.5°C</h2>
+                                <p class="text-muted">Son Güncelleme: 19.03.2025 10:45</p>
+                            </div>
+                        </div>
+                        <div class="dashboard-card mt-3">
+                            <h5>Hızlı Kontroller</h5>
+                            <div class="quick-controls">
+                                <button class="btn btn-success mb-2 w-100" onclick="updateSensorValue('temperature', 22)">Çeri Domates (22°C)</button>
+                                <button class="btn btn-outline-primary mb-2 w-100" onclick="updateSensorValue('temperature', 20)">Menekşe (20°C)</button>
+                                <button class="btn btn-outline-warning w-100" onclick="updateSensorValue('temperature', 18)">Gece Modu (18°C)</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Nem Kontrol Sayfası - Optimize Edilmiş -->
+        <div id="humidity-content" class="page-content temp-humid-page" style="display: none;">
+            <div class="container-fluid px-4">
+                <h1 class="dashboard-title animate-fadein">Nem Kontrolü</h1>
+                <div class="row">
+                    <div class="col-lg-8">
+                        <div class="dashboard-card">
+                            <h5>Nem Ayarları</h5>
+                            <div>
+                                <div class="mb-3">
+                                    <label for="humidityRange" class="form-label">İstenen Nem Oranı: <span id="humidityValue">65</span>%</label>
+                                    <input type="range" class="form-range" min="40" max="90" value="65" id="humidityRange" oninput="document.getElementById('humidityValue').textContent = this.value">
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="autoHumidity" checked>
+                                    <label class="form-check-label" for="autoHumidity">Otomatik Nem Kontrolü</label>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-2">
+                                        <label for="minHumidity" class="form-label">Minimum Nem</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="minHumidity" value="55">
+                                            <span class="input-group-text">%</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 mb-2">
+                                        <label for="maxHumidity" class="form-label">Maksimum Nem</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="maxHumidity" value="75">
+                                            <span class="input-group-text">%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button class="btn btn-primary mt-2" onclick="saveSettings('humidity')">Ayarları Kaydet</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4 side-cards">
+                        <div class="dashboard-card">
+                            <h5>Mevcut Nem</h5>
+                            <div class="sensor-display">
+                                <i class="fas fa-tint text-primary"></i>
+                                <h2>68%</h2>
+                                <p class="text-muted">Son Güncelleme: 19.03.2025 10:45</p>
+                            </div>
+                        </div>
+                        <div class="dashboard-card mt-3">
+                            <h5>Hızlı Kontroller</h5>
+                            <div class="quick-controls">
+                                <button class="btn btn-success mb-2 w-100" onclick="updateSensorValue('humidity', 70)">Çeri Domates (70%)</button>
+                                <button class="btn btn-outline-primary mb-2 w-100" onclick="updateSensorValue('humidity', 55)">Menekşe (55%)</button>
+                                <button class="btn btn-outline-warning w-100" onclick="updateSensorValue('humidity', 60)">Genel (60%)</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Bitki Durumu Sayfası -->
+        <div id="plants-content" class="page-content" style="display: none;">
+            <div class="container-fluid px-4">
+                <h1 class="dashboard-title animate-fadein">Bitki Durumu</h1>
+                <div class="row">
+                    <div class="col-lg-6">
+                        <div class="dashboard-card">
+                            <h5>Çeri Domates Durumu</h5>
+                            <div class="mt-4">
+                                <div class="row align-items-center mb-4">
+                                    <div class="col-md-4 text-center">
+                                        <i class="fas fa-seedling fa-4x text-success mb-3"></i>
+                                    </div>
+                                    <div class="col-md-8">
+                                        <h4>Optimum Büyüme Koşulları</h4>
+                                        <ul class="list-unstyled">
+                                            <li><i class="fas fa-thermometer-half me-2"></i> Sıcaklık: 21-24°C</li>
+                                            <li><i class="fas fa-tint me-2"></i> Nem: 65-75%</li>
+                                            <li><i class="fas fa-lightbulb me-2"></i> Işık: 8-10 saat/gün</li>
+                                            <li><i class="fas fa-water me-2"></i> Sulama: Orta düzeyde</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <h5>Mevcut Çeri Domates Parselleri</h5>
+                                    <div class="table-responsive">
+                                        <table class="table table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>Bölge</th>
+                                                    <th>Ekim Tarihi</th>
+                                                    <th>Gelişim</th>
+                                                    <th>Tahmini Hasat</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td>Bölge A</td>
+                                                    <td>15.01.2025</td>
+                                                    <td>%75</td>
+                                                    <td>02.04.2025</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Bölge C</td>
+                                                    <td>01.01.2025</td>
+                                                    <td>%90</td>
+                                                    <td>22.03.2025</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="dashboard-card">
+                            <h5>Menekşe Durumu</h5>
+                            <div class="mt-4">
+                                <div class="row align-items-center mb-4">
+                                    <div class="col-md-4 text-center">
+                                        <i class="fas fa-spa fa-4x text-purple mb-3"></i>
+                                    </div>
+                                    <div class="col-md-8">
+                                        <h4>Optimum Büyüme Koşulları</h4>
+                                        <ul class="list-unstyled">
+                                            <li><i class="fas fa-thermometer-half me-2"></i> Sıcaklık: 18-22°C</li>
+                                            <li><i class="fas fa-tint me-2"></i> Nem: 50-60%</li>
+                                            <li><i class="fas fa-lightbulb me-2"></i> Işık: Dolaylı güneş ışığı</li>
+                                            <li><i class="fas fa-water me-2"></i> Sulama: Düzenli, az miktarda</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <h5>Mevcut Menekşe Parselleri</h5>
+                                    <div class="table-responsive">
+                                        <table class="table table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>Bölge</th>
+                                                    <th>Ekim Tarihi</th>
+                                                    <th>Gelişim</th>
+                                                    <th>Tahmini Çiçeklenme</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td>Bölge B</td>
+                                                    <td>05.02.2025</td>
+                                                    <td>%65</td>
+                                                    <td>30.03.2025</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Diğer sayfaların içerikleri benzer şekilde eklenir... -->
+        
+        <!-- Geçici bir şablon olarak diğer sayfalar için aynı içeriği kullanacağız -->
+        <div id="lighting-content" class="page-content" style="display: none;">
+            <div class="container-fluid px-4">
+                <h1 class="dashboard-title animate-fadein">Aydınlatma Kontrolü</h1>
+                <div class="dashboard-card">
+                    <h5>Aydınlatma sayfası için içerik hazırlanıyor...</h5>
+                    <p>Bu sayfa yakında kullanıma açılacaktır.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div id="cameras-content" class="page-content" style="display: none;">
+            <div class="container-fluid px-4">
+                <h1 class="dashboard-title animate-fadein">Kamera Görüntüleri</h1>
+                <div class="dashboard-card">
+                    <h5>Kamera görüntüleri sayfası için içerik hazırlanıyor...</h5>
+                    <p>Bu sayfa yakında kullanıma açılacaktır.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div id="history-content" class="page-content" style="display: none;">
+            <div class="container-fluid px-4">
+                <h1 class="dashboard-title animate-fadein">Geçmiş Veriler</h1>
+                <div class="dashboard-card">
+                    <h5>Geçmiş veriler sayfası için içerik hazırlanıyor...</h5>
+                    <p>Bu sayfa yakında kullanıma açılacaktır.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div id="settings-content" class="page-content" style="display: none;">
+            <div class="container-fluid px-4">
+                <h1 class="dashboard-title animate-fadein">Ayarlar</h1>
+                <div class="dashboard-card">
+                    <h5>Ayarlar sayfası için içerik hazırlanıyor...</h5>
+                    <p>Bu sayfa yakında kullanıma açılacaktır.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
