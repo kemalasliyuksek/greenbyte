@@ -1,7 +1,7 @@
 <?php
 // Veritabanı bağlantı ayarları
 $db_host = "localhost"; // Muhtemelen "localhost" olmalı
-$db_user = "cpses_un6wedh510_admin"; // Kontrol panelinden doğru kullanıcı adı
+$db_user = "admin"; // Kontrol panelinden doğru kullanıcı adı
 $db_pass = "Ke3@1.3ySq1"; // Kullanıcınızın şifresi
 $db_name = "greenbyte"; // Veritabanı adı
 
