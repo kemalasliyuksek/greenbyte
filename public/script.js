@@ -88,6 +88,7 @@ async function fetchSensorData() {
 /**
  * Geçmiş sensör verilerini API'den alan fonksiyon
  */
+// fetchHistoricalData fonksiyonunda yapılacak düzeltme
 async function fetchHistoricalData() {
     try {
         // Sera ID'si
@@ -112,11 +113,36 @@ async function fetchHistoricalData() {
         let humidityHistory = [];
         let waterLevelHistory = [];
         
-        // Eğer veri varsa, sıcaklık ve nem geçmişini güncelle
+        // Eğer veri varsa, sıcaklık geçmişini güncelle
         if (data.temperature && data.temperature.length > 0) {
+            // API'den gelen temperature verisi varsa işle
             tempHistory = data.temperature.map(item => item.value);
+            
+            // Nem verileri yoksa ve sıcaklık verileri varsa
+            // DHT11 sensörü için: Sıcaklık ve nem verileri aynı sensörden gelir
+            // İki değer art arda kaydedilir (ilk sıcaklık, sonra nem)
+            if ((!data.humidity || data.humidity.length === 0) && data.temperature.length > 1) {
+                console.log("Nem verisi bulunamadı, DHT11 verilerinden oluşturuluyor...");
+                
+                // DHT11 sensöründen gelen verilerin işlenmesi:
+                // ESP32 kodunda önce sıcaklık sonra nem verileri gönderiliyor
+                // Bu nedenle veritabanındaki sıralama: [sıcaklık, nem, sıcaklık, nem, ...]
+                
+                // Tek indisli değerleri (1, 3, 5, ...) nem olarak kabul et
+                humidityHistory = [];
+                for (let i = 1; i < data.temperature.length; i += 2) {
+                    humidityHistory.push(data.temperature[i].value);
+                }
+                
+                // Çift indisli değerleri (0, 2, 4, ...) sıcaklık olarak kabul et
+                tempHistory = [];
+                for (let i = 0; i < data.temperature.length; i += 2) {
+                    tempHistory.push(data.temperature[i].value);
+                }
+            }
         }
         
+        // Eğer API'den gelen humidity verisi varsa işle
         if (data.humidity && data.humidity.length > 0) {
             humidityHistory = data.humidity.map(item => item.value);
         }
@@ -130,15 +156,46 @@ async function fetchHistoricalData() {
             // Zaman etiketlerini güncelle
             timeLabels = [];
             
-            data.temperature.forEach(item => {
-                const date = new Date(item.timestamp);
-                const hours = date.getHours().toString().padStart(2, '0');
-                const minutes = date.getMinutes().toString().padStart(2, '0');
-                timeLabels.push(`${hours}:${minutes}`);
-            });
+            // Eğer DHT11 verilerini işlediysek, sadece çift indisli zaman etiketlerini al
+            if ((!data.humidity || data.humidity.length === 0) && data.temperature.length > 1) {
+                for (let i = 0; i < data.temperature.length; i += 2) {
+                    const date = new Date(data.temperature[i].timestamp);
+                    const hours = date.getHours().toString().padStart(2, '0');
+                    const minutes = date.getMinutes().toString().padStart(2, '0');
+                    timeLabels.push(`${hours}:${minutes}`);
+                }
+            } else {
+                // Normal durumda tüm zaman etiketlerini al
+                data.temperature.forEach(item => {
+                    const date = new Date(item.timestamp);
+                    const hours = date.getHours().toString().padStart(2, '0');
+                    const minutes = date.getMinutes().toString().padStart(2, '0');
+                    timeLabels.push(`${hours}:${minutes}`);
+                });
+            }
         } else {
             // Varsayılan zaman etiketleri
             timeLabels = ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'];
+        }
+        
+        console.log("İşlenmiş veriler:", {
+            tempHistory: tempHistory.length,
+            humidityHistory: humidityHistory.length,
+            timeLabels: timeLabels.length
+        });
+        
+        // Veri dizilerinin boyutlarını kontrol et ve eşitle
+        const maxLength = Math.max(tempHistory.length, humidityHistory.length);
+        if (maxLength > 0) {
+            // Zaman etiketlerini veri sayısıyla eşleştir
+            while (timeLabels.length < maxLength) {
+                // Eksik zaman etiketlerini varsayılan değerlerle doldur
+                timeLabels.push("");
+            }
+            // Fazla zaman etiketlerini kırp
+            if (timeLabels.length > maxLength) {
+                timeLabels = timeLabels.slice(0, maxLength);
+            }
         }
         
         // Veri olmadığında boş diziler döndür
