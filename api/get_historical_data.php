@@ -79,7 +79,7 @@ while ($sensor = $sensorler->fetch_assoc()) {
         }
     } else if (strpos($sensor_name, 'Su') !== false) {
         $key = 'waterLevel';
-    } else if (strpos($sensor_name, 'Hava') !== false) {
+    } else if (strpos($sensor_name, 'Hava') !== false || strpos($sensor_name, 'Işık') !== false) {
         $key = 'lightLevel'; // Hava kalite sensörünü ışık seviyesi için kullanıyoruz
     }
     
@@ -101,6 +101,8 @@ $conn->close();
 
 // Sonuç gönder
 if (count($result) > 0) {
+    // Başarı durumunu ekle
+    $result['success'] = true;
     echo json_encode($result);
 } else {
     sendResponse(false, "Belirtilen zaman aralığında veri bulunamadı");

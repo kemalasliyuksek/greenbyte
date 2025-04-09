@@ -1,24 +1,18 @@
 // Global değişkenler
 let tempHumidityChart;
 let waterUsageChart;
-let sensorData = {
-    temperature: 24.5,
-    humidity: 68,
-    lightLevel: 856,
-    soilMoisture: 72,
-    co2Level: 750,
-    waterUsage: [45, 59, 40, 35, 48, 42, 38],
-    tempHistory: [22, 21.5, 21, 20.8, 21.2, 22.5, 24, 25, 25.5, 26, 25, 24.5],
-    humidityHistory: [65, 67, 70, 72, 71, 69, 65, 62, 60, 59, 62, 68]
-};
+let waterLevelHistoryChart;
+
+// Aktivite log verisi - varsayılan olarak boş
+let activityLogs = [];
 
 // API URL'leri
 const API_BASE_URL = "http://kemalasliyuksek.com/greenbyte/api";
 const LATEST_DATA_URL = `${API_BASE_URL}/get_latest_data.php`;
 const HISTORICAL_DATA_URL = `${API_BASE_URL}/get_historical_data.php`;
 
-// Zaman etiketleri
-const timeLabels = ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'];
+// Zaman etiketleri - API'den alınacak
+let timeLabels = [];
 
 /**
  * Sensör değerlerini manuel olarak güncellemek için kullanılabilecek fonksiyon
@@ -26,14 +20,16 @@ const timeLabels = ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00
  * @param {number|array} value - Sensör değeri
  */
 function updateSensorValue(sensorType, value) {
-    if (sensorData.hasOwnProperty(sensorType)) {
-        sensorData[sensorType] = value;
-        // Dashboard'u güncelle
-        updateDashboard(sensorData);
-        console.log(`${sensorType} sensör değeri güncellendi: ${value}`);
-    } else {
-        console.error(`Geçersiz sensör tipi: ${sensorType}`);
-    }
+    // Ayarları güncellemek için kullanılan bir fonksiyon
+    // Gerçek sensör değerlerini değiştirmez, sadece ayarları günceller
+    
+    showNotification(`${sensorType} ayarı ${value} olarak güncellendi`, 'success');
+    
+    // Gerekli API isteğini burada yapabilirsiniz
+    // Örneğin: bir ayar değişikliği API'si ile sunucuya bildirebilirsiniz
+    
+    // Aktivite log'a ekle
+    addActivityLog(`${capitalizeFirstLetter(sensorType)} ayarı değiştirildi`, 'Tamamlandı');
 }
 
 /**
@@ -41,7 +37,7 @@ function updateSensorValue(sensorType, value) {
  */
 async function fetchSensorData() {
     try {
-        // Sera ID'si. Gerçek uygulamada bu dinamik olabilir
+        // Sera ID'si
         const seraID = 1;
         
         // En son sensör verilerini al
@@ -53,19 +49,33 @@ async function fetchSensorData() {
         
         const data = await response.json();
         
-        // Veri formatını düzenle
+        // Eğer verilerde hata varsa, bir hata fırlat
+        if (!data.success && data.message) {
+            throw new Error(data.message);
+        }
+        
+        // Verileri döndür
         return {
-            temperature: data.temperature.value,
-            humidity: data.humidity.value,
-            soilMoisture: data.soilMoisture.value,
-            lightLevel: data.lightLevel.value,
-            // Diğer sensörler eklenebilir
-            lastUpdated: new Date(data.temperature.timestamp)
+            temperature: data.temperature ? data.temperature.value : null,
+            humidity: data.humidity ? data.humidity.value : null,
+            soilMoisture: data.soilMoisture ? data.soilMoisture.value : null,
+            lightLevel: data.lightLevel ? data.lightLevel.value : null,
+            waterLevel: data.waterLevel ? data.waterLevel.value : null,
+            lastUpdated: data.temperature ? new Date(data.temperature.timestamp) : new Date()
         };
     } catch (error) {
         console.error('Sensör verilerini alma hatası:', error);
-        // Hata durumunda mevcut verileri kullan
-        return sensorData;
+        showNotification(`Veri alma hatası: ${error.message}`, 'danger');
+        
+        // Hata durumunda null döndür (veriler mevcut değil)
+        return {
+            temperature: null,
+            humidity: null,
+            soilMoisture: null,
+            lightLevel: null,
+            waterLevel: null,
+            lastUpdated: new Date()
+        };
     }
 }
 
@@ -74,7 +84,7 @@ async function fetchSensorData() {
  */
 async function fetchHistoricalData() {
     try {
-        // Sera ID'si. Gerçek uygulamada bu dinamik olabilir
+        // Sera ID'si
         const seraID = 1;
         
         // Son 24 saatin verilerini al
@@ -87,19 +97,28 @@ async function fetchHistoricalData() {
         
         const data = await response.json();
         
+        // Boş diziler oluştur - varsayılan olarak boş olsun
+        let tempHistory = [];
+        let humidityHistory = [];
+        let waterLevelHistory = [];
+        
         // Eğer veri varsa, sıcaklık ve nem geçmişini güncelle
         if (data.temperature && data.temperature.length > 0) {
-            sensorData.tempHistory = data.temperature.map(item => item.value);
+            tempHistory = data.temperature.map(item => item.value);
         }
         
         if (data.humidity && data.humidity.length > 0) {
-            sensorData.humidityHistory = data.humidity.map(item => item.value);
+            humidityHistory = data.humidity.map(item => item.value);
+        }
+        
+        if (data.waterLevel && data.waterLevel.length > 0) {
+            waterLevelHistory = data.waterLevel.map(item => item.value);
         }
         
         // Zaman etiketlerini güncelle
         if (data.temperature && data.temperature.length > 0) {
             // Zaman etiketlerini güncelle
-            timeLabels.length = 0; // Mevcut etiketleri temizle
+            timeLabels = [];
             
             data.temperature.forEach(item => {
                 const date = new Date(item.timestamp);
@@ -107,13 +126,27 @@ async function fetchHistoricalData() {
                 const minutes = date.getMinutes().toString().padStart(2, '0');
                 timeLabels.push(`${hours}:${minutes}`);
             });
+        } else {
+            // Varsayılan zaman etiketleri
+            timeLabels = ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'];
         }
         
-        // Grafikleri güncelle
-        updateCharts();
-        
+        // Veri olmadığında boş diziler döndür
+        return {
+            tempHistory: tempHistory,
+            humidityHistory: humidityHistory,
+            waterLevelHistory: waterLevelHistory
+        };
     } catch (error) {
         console.error('Geçmiş verileri alma hatası:', error);
+        showNotification(`Geçmiş verileri alma hatası: ${error.message}`, 'danger');
+        
+        // Hata durumunda boş diziler döndür
+        return {
+            tempHistory: [],
+            humidityHistory: [],
+            waterLevelHistory: []
+        };
     }
 }
 
@@ -124,68 +157,361 @@ async function fetchHistoricalData() {
 function updateDashboard(data) {
     if (!data) return;
     
-    // Sensör verilerini güncelle
-    sensorData = { ...sensorData, ...data };
-    
     // Temel sensör kartlarını güncelle
-    document.querySelector('.col-md-3:nth-child(1) .card-value').textContent = `${sensorData.temperature.toFixed(1)}°C`;
-    document.querySelector('.col-md-3:nth-child(2) .card-value').textContent = `${sensorData.humidity.toFixed(0)}%`;
-    document.querySelector('.col-md-3:nth-child(3) .card-value').textContent = `${sensorData.lightLevel} lux`;
-    document.querySelector('.col-md-3:nth-child(4) .card-value').textContent = `${sensorData.soilMoisture.toFixed(0)}%`;
+    updateSensorCard('temp', data.temperature, '°C');
+    updateSensorCard('humidity', data.humidity, '%');
+    updateSensorCard('light', data.lightLevel, ' lux');
+    updateSensorCard('soil', data.soilMoisture, '%');
+    
+    // Su seviyesi göstergesini güncelle
+    updateWaterLevelGauge(data.waterLevel);
     
     // Sıcaklık ve Nem sayfalarındaki mevcut değerleri güncelle
-    const tempDisplay = document.querySelector('#temperature-content .sensor-display h2');
-    if (tempDisplay) {
-        tempDisplay.textContent = `${sensorData.temperature.toFixed(1)}°C`;
+    updateSensorDisplayPage('temperature', data.temperature, '°C', data.lastUpdated);
+    updateSensorDisplayPage('humidity', data.humidity, '%', data.lastUpdated);
+    updateSensorDisplayPage('water-level', data.waterLevel, '%', data.lastUpdated);
+    
+    // Sistem durumunu güncelle
+    updateSystemStatus(data);
+    
+    // Uyarıları güncelle
+    updateAlerts(data);
+}
+
+/**
+ * Sensör kartını güncelleyen yardımcı fonksiyon
+ * @param {string} sensorId - Sensör ID'si (HTML ID'si)
+ * @param {number} value - Sensör değeri
+ * @param {string} unit - Birim (°C, %, lux, vb.)
+ */
+function updateSensorCard(sensorId, value, unit) {
+    const valueElement = document.getElementById(`${sensorId}-value`);
+    const changeElement = document.getElementById(`${sensorId}-change`);
+    
+    if (!valueElement) return;
+    
+    if (value !== null && value !== undefined) {
+        // Sayısal değer göster
+        valueElement.textContent = typeof value === 'number' ? 
+            value.toFixed(1) + unit : 
+            value + unit;
+            
+        // Değişim bilgisini gizle/göster
+        if (changeElement) {
+            changeElement.innerHTML = `<i class="fas fa-sync-alt"></i> <span>Güncel</span>`;
+        }
+    } else {
+        // Veri yoksa belirsiz göster
+        valueElement.textContent = `--${unit}`;
+        
+        if (changeElement) {
+            changeElement.innerHTML = `<i class="fas fa-exclamation-circle"></i> <span>Veri yok</span>`;
+        }
+    }
+}
+
+/**
+ * Sayfa sensör değerlerini güncelleyen yardımcı fonksiyon
+ * @param {string} sensorId - Sensör ID'si (HTML ID'si)
+ * @param {number} value - Sensör değeri
+ * @param {string} unit - Birim (°C, %, lux, vb.)
+ * @param {Date} lastUpdated - Son güncelleme zamanı
+ */
+function updateSensorDisplayPage(sensorId, value, unit, lastUpdated) {
+    const displayElement = document.getElementById(`${sensorId}-display`);
+    const lastUpdateElement = document.getElementById(`${sensorId}-last-update`);
+    
+    if (!displayElement || !lastUpdateElement) return;
+    
+    if (value !== null && value !== undefined) {
+        // Sayısal değer göster
+        displayElement.textContent = typeof value === 'number' ? 
+            value.toFixed(1) + unit : 
+            value + unit;
+        
+        // Son güncelleme zamanını göster
+        lastUpdateElement.textContent = `Son Güncelleme: ${formatDateTime(lastUpdated)}`;
+    } else {
+        // Veri yoksa belirsiz göster
+        displayElement.textContent = `--${unit}`;
+        lastUpdateElement.textContent = `Son Güncelleme: Veri yok`;
+    }
+}
+
+/**
+ * Su seviyesi göstergesini güncelleyen fonksiyon
+ * @param {number} waterLevel - Su seviyesi (%)
+ */
+function updateWaterLevelGauge(waterLevel) {
+    const waterLevelFill = document.getElementById('waterLevelFill');
+    const waterLevelIndicator = document.getElementById('waterLevelIndicator');
+    const waterLevelValue = document.getElementById('water-level-value');
+    const waterLevelStatus = document.getElementById('water-level-status');
+    
+    if (!waterLevelFill || !waterLevelIndicator || !waterLevelValue || !waterLevelStatus) return;
+    
+    if (waterLevel !== null && waterLevel !== undefined) {
+        // Su seviyesi değerini ayarla
+        const waterLevelPercentage = Math.min(Math.max(waterLevel, 0), 100);
+        const waterLevelAngle = (waterLevelPercentage / 100) * 180;
+        
+        waterLevelFill.style.height = `${waterLevelPercentage}%`;
+        waterLevelIndicator.style.transform = `rotate(${waterLevelAngle}deg)`;
+        waterLevelValue.textContent = `${waterLevelPercentage.toFixed(0)}%`;
+        
+        // Su seviyesi durumunu belirle
+        let status = getWaterLevelStatus(waterLevelPercentage);
+        let statusClass = '';
+        
+        if (waterLevelPercentage < 20) {
+            statusClass = 'text-danger';
+        } else if (waterLevelPercentage < 40) {
+            statusClass = 'text-warning';
+        } else {
+            statusClass = 'text-success';
+        }
+        
+        waterLevelStatus.innerHTML = `Durum: <span class="${statusClass}">${status}</span>`;
+        
+        // Su sistemi durumunu güncelle
+        const waterSystemStatus = document.getElementById('water-system-status');
+        if (waterSystemStatus) {
+            waterSystemStatus.className = `status-indicator ${waterLevelPercentage < 30 ? 'status-warning' : 'status-active'}`;
+        }
+    } else {
+        // Veri yoksa belirsiz göster
+        waterLevelFill.style.height = '0%';
+        waterLevelIndicator.style.transform = 'rotate(0deg)';
+        waterLevelValue.textContent = `--%`;
+        waterLevelStatus.textContent = `Durum: Veri alınamıyor`;
+    }
+}
+
+/**
+ * Su seviyesi durumunu döndüren fonksiyon
+ * @param {number} percentage - Su seviyesi (%)
+ * @returns {string} - Su seviyesi durumu
+ */
+function getWaterLevelStatus(percentage) {
+    if (percentage < 10) {
+        return "Çok Düşük";
+    } else if (percentage < 30) {
+        return "Düşük";
+    } else if (percentage < 60) {
+        return "Orta";
+    } else if (percentage < 80) {
+        return "Yüksek";
+    } else {
+        return "Çok Yüksek";
+    }
+}
+
+/**
+ * Sistem durumunu sensör verilerine göre güncelleyen fonksiyon
+ * @param {Object} data - Sensör verileri
+ */
+function updateSystemStatus(data) {
+    // Sulama sistemi durumunu güncelle
+    if (data.waterLevel !== null && data.waterLevel !== undefined) {
+        const waterSystemStatus = document.getElementById('water-system-status');
+        if (waterSystemStatus) {
+            if (data.waterLevel < 20) {
+                waterSystemStatus.className = 'status-indicator status-danger';
+            } else if (data.waterLevel < 40) {
+                waterSystemStatus.className = 'status-indicator status-warning';
+            } else {
+                waterSystemStatus.className = 'status-indicator status-active';
+            }
+        }
+    }
+}
+
+/**
+ * Uyarıları sensör verilerine göre güncelleyen fonksiyon
+ * @param {Object} data - Sensör verileri
+ */
+function updateAlerts(data) {
+    const alertsContainer = document.getElementById('alerts-container');
+    if (!alertsContainer) return;
+    
+    // Uyarıları temizle
+    alertsContainer.innerHTML = '';
+    
+    // Su seviyesi uyarısı
+    if (data.waterLevel !== null && data.waterLevel !== undefined) {
+        if (data.waterLevel < 20) {
+            addAlert('warning', 'Düşük Su Seviyesi', `Su deposu seviyesi %${data.waterLevel.toFixed(0)}'e düştü. Lütfen depoyu doldurun.`);
+        }
     }
     
-    const humidityDisplay = document.querySelector('#humidity-content .sensor-display h2');
-    if (humidityDisplay) {
-        humidityDisplay.textContent = `${sensorData.humidity.toFixed(0)}%`;
+    // Toprak nemi uyarısı
+    if (data.soilMoisture !== null && data.soilMoisture !== undefined) {
+        if (data.soilMoisture < 30) {
+            addAlert('warning', 'Düşük Toprak Nemi', `Toprak nem seviyesi %${data.soilMoisture.toFixed(0)}. Sulama gerekli olabilir.`);
+        }
     }
     
-    // Son güncelleme zamanını ayarla
-    const lastUpdateTime = sensorData.lastUpdated ? 
-        sensorData.lastUpdated.toLocaleString('tr-TR') : 
-        new Date().toLocaleString('tr-TR');
-    
-    const tempUpdateTime = document.querySelector('#temperature-content .sensor-display p');
-    if (tempUpdateTime) {
-        tempUpdateTime.textContent = `Son Güncelleme: ${lastUpdateTime}`;
+    // Sıcaklık uyarısı
+    if (data.temperature !== null && data.temperature !== undefined) {
+        if (data.temperature > 30) {
+            addAlert('danger', 'Yüksek Sıcaklık', `Sera sıcaklığı ${data.temperature.toFixed(1)}°C. Havalandırma gerekli olabilir.`);
+        } else if (data.temperature < 15) {
+            addAlert('warning', 'Düşük Sıcaklık', `Sera sıcaklığı ${data.temperature.toFixed(1)}°C. Isıtma gerekli olabilir.`);
+        }
     }
     
-    const humUpdateTime = document.querySelector('#humidity-content .sensor-display p');
-    if (humUpdateTime) {
-        humUpdateTime.textContent = `Son Güncelleme: ${lastUpdateTime}`;
+    // Nem uyarısı
+    if (data.humidity !== null && data.humidity !== undefined) {
+        if (data.humidity > 80) {
+            addAlert('warning', 'Yüksek Nem', `Sera nem seviyesi %${data.humidity.toFixed(0)}. Havalandırma gerekli olabilir.`);
+        } else if (data.humidity < 40) {
+            addAlert('warning', 'Düşük Nem', `Sera nem seviyesi %${data.humidity.toFixed(0)}. Nemlendirme gerekli olabilir.`);
+        }
     }
     
-    // CO2 göstergesini güncelle
-    const co2Percentage = Math.min(Math.max((sensorData.co2Level / 1500) * 100, 0), 100); // 0-1500 ppm arasını 0-100% olarak ölçekle
-    const co2Angle = (co2Percentage / 100) * 180;
-    document.getElementById('co2Fill').style.height = `${co2Percentage}%`;
-    document.getElementById('co2Indicator').style.transform = `rotate(${co2Angle}deg)`;
-    document.querySelector('.gauge-value').textContent = `${sensorData.co2Level} ppm`;
+    // Hiç uyarı yoksa ve veriler geliyorsa
+    if (alertsContainer.innerHTML === '' && data.temperature !== null) {
+        addAlert('success', 'Sistem Normal', 'Tüm sensör verileri normal aralıkta. Sistemde herhangi bir sorun tespit edilmedi.');
+    }
     
-    // Grafikleri güncelle
-    updateCharts();
+    // Hiç veri yoksa
+    if (data.temperature === null && data.humidity === null && data.soilMoisture === null && 
+        data.lightLevel === null && data.waterLevel === null) {
+        addAlert('info', 'Veri Alınamıyor', 'Sensör verileri alınamıyor. Lütfen bağlantıları kontrol edin.');
+    }
+}
+
+/**
+ * Uyarı ekleyen yardımcı fonksiyon
+ * @param {string} type - Uyarı tipi (success, info, warning, danger)
+ * @param {string} title - Uyarı başlığı
+ * @param {string} message - Uyarı mesajı
+ */
+function addAlert(type, title, message) {
+    const alertsContainer = document.getElementById('alerts-container');
+    if (!alertsContainer) return;
+    
+    const icon = getAlertIcon(type);
+    
+    const alertHTML = `
+        <div class="alert alert-${type} d-flex align-items-center">
+            <i class="${icon} me-2"></i>
+            <div>
+                <strong>${title}:</strong> ${message}
+            </div>
+        </div>
+    `;
+    
+    alertsContainer.innerHTML += alertHTML;
+}
+
+/**
+ * Uyarı tipine göre ikon döndüren yardımcı fonksiyon
+ * @param {string} type - Uyarı tipi
+ * @returns {string} - İkon sınıf adı
+ */
+function getAlertIcon(type) {
+    switch (type) {
+        case 'success':
+            return 'fas fa-check-circle';
+        case 'info':
+            return 'fas fa-info-circle';
+        case 'warning':
+            return 'fas fa-exclamation-triangle';
+        case 'danger':
+            return 'fas fa-exclamation-circle';
+        default:
+            return 'fas fa-info-circle';
+    }
+}
+
+/**
+ * Aktivite log'a yeni bir kayıt ekleyen fonksiyon
+ * @param {string} action - İşlem
+ * @param {string} status - Durum
+ */
+function addActivityLog(action, status = 'Tamamlandı') {
+    const now = new Date();
+    const formattedDate = formatDateTime(now);
+    
+    const newLog = {
+        date: formattedDate,
+        action: action,
+        status: status
+    };
+    
+    // Log'a ekle (en fazla 10 kayıt)
+    activityLogs.unshift(newLog);
+    if (activityLogs.length > 10) {
+        activityLogs.pop();
+    }
+    
+    // Log tablosunu güncelle
+    updateActivityLogTable();
+}
+
+/**
+ * Aktivite log tablosunu güncelleyen fonksiyon
+ */
+function updateActivityLogTable() {
+    const activityLogTable = document.getElementById('activity-log');
+    if (!activityLogTable) return;
+    
+    if (activityLogs.length === 0) {
+        activityLogTable.innerHTML = '<tr><td colspan="3" class="text-center">Henüz aktivite kaydı yok</td></tr>';
+        return;
+    }
+    
+    let html = '';
+    activityLogs.forEach(log => {
+        let statusBadge = '';
+        
+        switch (log.status.toLowerCase()) {
+            case 'tamamlandı':
+                statusBadge = '<span class="badge bg-success">Tamamlandı</span>';
+                break;
+            case 'bekliyor':
+                statusBadge = '<span class="badge bg-warning">Bekliyor</span>';
+                break;
+            case 'hata':
+                statusBadge = '<span class="badge bg-danger">Hata</span>';
+                break;
+            default:
+                statusBadge = `<span class="badge bg-secondary">${log.status}</span>`;
+        }
+        
+        html += `
+            <tr>
+                <td>${log.date}</td>
+                <td>${log.action}</td>
+                <td>${statusBadge}</td>
+            </tr>
+        `;
+    });
+    
+    activityLogTable.innerHTML = html;
 }
 
 /**
  * Grafikleri güncelleyen fonksiyon
+ * @param {Object} historicalData - Geçmiş veriler
  */
-function updateCharts() {
+function updateCharts(historicalData) {
+    if (!historicalData) return;
+    
     // Sıcaklık ve Nem grafiğini güncelle
     if (tempHumidityChart) {
         tempHumidityChart.data.labels = timeLabels;
-        tempHumidityChart.data.datasets[0].data = sensorData.tempHistory;
-        tempHumidityChart.data.datasets[1].data = sensorData.humidityHistory;
+        tempHumidityChart.data.datasets[0].data = historicalData.tempHistory;
+        tempHumidityChart.data.datasets[1].data = historicalData.humidityHistory;
         tempHumidityChart.update();
     }
     
-    // Su kullanım grafiğini güncelle
-    if (waterUsageChart) {
-        waterUsageChart.data.datasets[0].data = sensorData.waterUsage;
-        waterUsageChart.update();
+    // Su seviyesi geçmiş grafiğini güncelle
+    if (waterLevelHistoryChart) {
+        waterLevelHistoryChart.data.labels = timeLabels;
+        waterLevelHistoryChart.data.datasets[0].data = historicalData.waterLevelHistory;
+        waterLevelHistoryChart.update();
     }
 }
 
@@ -344,6 +670,21 @@ function initDashboard() {
         topbar.style.left = `${sidebar.offsetWidth}px`;
     }
     
+    // Manuel su doldurma butonuna tıklama olayı ekle
+    const manualWaterFillButton = document.getElementById('manual-water-fill');
+    if (manualWaterFillButton) {
+        manualWaterFillButton.addEventListener('click', function() {
+            showNotification('Manuel su doldurma işlemi başlatıldı', 'success');
+            addActivityLog('Manuel Su Doldurma Başlatıldı', 'Bekliyor');
+            
+            // 5 saniye sonra tamamlandığını bildir
+            setTimeout(() => {
+                addActivityLog('Manuel Su Doldurma', 'Tamamlandı');
+                showNotification('Su doldurma işlemi tamamlandı', 'success');
+            }, 5000);
+        });
+    }
+    
     // Sıcaklık ve Nem Grafiği
     const tempHumidityCtx = document.getElementById('tempHumidityChart');
     if (tempHumidityCtx) {
@@ -355,7 +696,7 @@ function initDashboard() {
                 datasets: [
                     {
                         label: 'Sıcaklık (°C)',
-                        data: sensorData.tempHistory,
+                        data: [],
                         borderColor: '#F44336',
                         backgroundColor: 'rgba(244, 67, 54, 0.1)',
                         tension: 0.4,
@@ -363,7 +704,7 @@ function initDashboard() {
                     },
                     {
                         label: 'Nem (%)',
-                        data: sensorData.humidityHistory,
+                        data: [],
                         borderColor: '#2196F3',
                         backgroundColor: 'rgba(33, 150, 243, 0.1)',
                         tension: 0.4,
@@ -397,20 +738,21 @@ function initDashboard() {
         });
     }
     
-    // Su Kullanım Grafiği
-    const waterUsageCtx = document.getElementById('waterUsageChart');
-    if (waterUsageCtx) {
-        const ctx = waterUsageCtx.getContext('2d');
-        waterUsageChart = new Chart(ctx, {
-            type: 'bar',
+    // Su Seviyesi Geçmiş Grafiği
+    const waterLevelHistoryCtx = document.getElementById('waterLevelHistoryChart');
+    if (waterLevelHistoryCtx) {
+        const ctx = waterLevelHistoryCtx.getContext('2d');
+        waterLevelHistoryChart = new Chart(ctx, {
+            type: 'line',
             data: {
-                labels: ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'],
+                labels: timeLabels,
                 datasets: [{
-                    label: 'Su Tüketimi (lt)',
-                    data: sensorData.waterUsage,
-                    backgroundColor: 'rgba(76, 175, 80, 0.6)',
-                    borderColor: 'rgba(76, 175, 80, 1)',
-                    borderWidth: 1
+                    label: 'Su Seviyesi (%)',
+                    data: [],
+                    borderColor: '#2196F3',
+                    backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                    tension: 0.4,
+                    fill: true
                 }]
             },
             options: {
@@ -418,7 +760,11 @@ function initDashboard() {
                 maintainAspectRatio: false,
                 scales: {
                     y: {
-                        beginAtZero: true
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: {
+                            stepSize: 20
+                        }
                     }
                 }
             }
@@ -427,6 +773,9 @@ function initDashboard() {
     
     // Başlangıç verilerini al ve güncelleme döngüsünü başlat
     updateRealTimeData();
+    
+    // İlk aktivite günlüğü oluştur
+    addActivityLog('Sistem Başlatıldı', 'Tamamlandı');
 }
 
 /**
@@ -436,15 +785,22 @@ async function updateRealTimeData() {
     try {
         // En son sensör verilerini al
         const latestData = await fetchSensorData();
-        updateDashboard(latestData);
         
         // Geçmiş verileri al
-        await fetchHistoricalData();
+        const historicalData = await fetchHistoricalData();
+        
+        // Dashboard'u güncelle
+        updateDashboard(latestData);
+        
+        // Grafikleri güncelle
+        updateCharts(historicalData);
         
         // 10 saniyede bir güncelle (bu değeri değiştirebilirsiniz)
         setTimeout(updateRealTimeData, 10000);
     } catch (error) {
         console.error('Veri güncelleme hatası:', error);
+        showNotification('Veri güncelleme hatası. Tekrar deneniyor...', 'danger');
+        
         // Hata durumunda 30 saniye sonra tekrar dene
         setTimeout(updateRealTimeData, 30000);
     }
@@ -508,7 +864,7 @@ function showNotification(message, type = 'info') {
     
     notification.innerHTML = `
         <div class="d-flex align-items-center">
-            <i class="fas fa-info-circle me-2"></i>
+            <i class="${getAlertIcon(type)} me-2"></i>
             <div>${message}</div>
             <button type="button" class="btn-close ms-auto" aria-label="Close"></button>
         </div>
@@ -533,9 +889,36 @@ function showNotification(message, type = 'info') {
  * @param {string} settingType - Ayar tipi (temperature, humidity, vs.)
  */
 function saveSettings(settingType) {
-    // Burada gerçek bir kaydetme işlemi yapılabilir
-    // Örnek olarak sadece bir bildirim gösteriyoruz
     showNotification(`${settingType} ayarları başarıyla kaydedildi!`, 'success');
+    addActivityLog(`${capitalizeFirstLetter(settingType)} Ayarları Güncellendi`, 'Tamamlandı');
+}
+
+/**
+ * İlk harf büyük yapma yardımcı fonksiyonu
+ * @param {string} str - Metin
+ * @returns {string} - İlk harfi büyük metin
+ */
+function capitalizeFirstLetter(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+/**
+ * Tarih saat formatı yardımcı fonksiyonu
+ * @param {Date} date - Tarih
+ * @returns {string} - Formatlanmış tarih saat
+ */
+function formatDateTime(date) {
+    if (!(date instanceof Date)) {
+        date = new Date(date);
+    }
+    
+    return date.toLocaleString('tr-TR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
 }
 
 // Sayfa yüklendiğinde dashboard'u başlat

@@ -50,22 +50,19 @@ while ($sensor = $sensorler->fetch_assoc()) {
         $row = $data->fetch_assoc();
         
         // Sensör tipine göre uygun anahtar belirle
-        $key = '';
-        
         if (strpos($sensor_name, 'Sıcaklık') !== false) {
             $result['temperature'] = [
                 'value' => floatval($row['deger']),
                 'timestamp' => $row['kayit_zamani']
             ];
         } else if (strpos($sensor_name, 'Nem') !== false) {
-            $result['humidity'] = [
-                'value' => floatval($row['deger']),
-                'timestamp' => $row['kayit_zamani']
-            ];
-            
-            // Toprak nem sensörü olabilir
             if (strpos($sensor_name, 'Toprak') !== false) {
                 $result['soilMoisture'] = [
+                    'value' => floatval($row['deger']),
+                    'timestamp' => $row['kayit_zamani']
+                ];
+            } else {
+                $result['humidity'] = [
                     'value' => floatval($row['deger']),
                     'timestamp' => $row['kayit_zamani']
                 ];
@@ -75,7 +72,7 @@ while ($sensor = $sensorler->fetch_assoc()) {
                 'value' => floatval($row['deger']),
                 'timestamp' => $row['kayit_zamani']
             ];
-        } else if (strpos($sensor_name, 'Hava') !== false) {
+        } else if (strpos($sensor_name, 'Hava') !== false || strpos($sensor_name, 'Işık') !== false) {
             // Hava kalite sensörünü ışık seviyesi için kullanıyoruz
             $result['lightLevel'] = [
                 'value' => floatval($row['deger']),
@@ -90,6 +87,8 @@ $conn->close();
 
 // Sonuç gönder
 if (count($result) > 0) {
+    // Başarı durumunu ekle
+    $result['success'] = true;
     echo json_encode($result);
 } else {
     sendResponse(false, "Hiç veri bulunamadı");

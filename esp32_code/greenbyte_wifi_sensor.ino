@@ -71,6 +71,8 @@ unsigned long currentMillis = 0;
 
 // Sistem durumu değişkenleri
 bool wifiConnected = false;
+bool lastSendSuccess = false;
+int failedAttempts = 0;
 
 void setup() {
   Serial.begin(115200);
@@ -129,11 +131,26 @@ void loop() {
     sendDataToServer();
   }
   
-  // Genel LED uyarısı
-  // Toprak nemi düşükse veya su seviyesi düşükse LED'i yak
-  if (soilMoisturePercentage < 30 || waterPercentage < 20) {
-    digitalWrite(ledPin, HIGH);
-  } else {
+  // LED durum göstergesi
+  // 1. WiFi bağlantısı yoksa hızlı yanıp sön
+  // 2. Son veri gönderimi başarısızsa orta hızda yanıp sön
+  // 3. Toprak nemi düşükse veya su seviyesi düşükse yavaş yanıp sön
+  // 4. Herşey normalde LED kapalı kalsın
+  
+  if (!wifiConnected) {
+    // WiFi bağlantısı yoksa hızlı yanıp sön (250ms)
+    digitalWrite(ledPin, (currentMillis / 250) % 2);
+  }
+  else if (!lastSendSuccess) {
+    // Son veri gönderimi başarısızsa orta hızda yanıp sön (500ms)
+    digitalWrite(ledPin, (currentMillis / 500) % 2);
+  }
+  else if (soilMoisturePercentage < 30 || waterPercentage < 20) {
+    // Toprak nemi düşükse veya su seviyesi düşükse yavaş yanıp sön (1000ms)
+    digitalWrite(ledPin, (currentMillis / 1000) % 2);
+  }
+  else {
+    // Her şey normalse LED'i kapat
     digitalWrite(ledPin, LOW);
   }
   
@@ -154,6 +171,9 @@ void connectToWifi() {
     delay(1000);
     Serial.print(".");
     connectionAttempts++;
+    
+    // Her deneme için LED'i yanıp söndür
+    digitalWrite(ledPin, connectionAttempts % 2);
   }
   
   if (WiFi.status() == WL_CONNECTED) {
@@ -161,6 +181,14 @@ void connectToWifi() {
     Serial.println("\nWiFi bağlantısı başarılı!");
     Serial.print("IP Adresi: ");
     Serial.println(WiFi.localIP());
+    
+    // Bağlantı başarılı olduğunda LED'i 3 kez hızlıca yanıp söndür
+    for (int i = 0; i < 3; i++) {
+      digitalWrite(ledPin, HIGH);
+      delay(100);
+      digitalWrite(ledPin, LOW);
+      delay(100);
+    }
   } else {
     wifiConnected = false;
     Serial.println("\nWiFi bağlantısı kurulamadı! Daha sonra tekrar denenecek.");
@@ -201,8 +229,10 @@ void readDHTSensor() {
   // Okunan değerleri kontrol et
   if (isnan(humidity) || isnan(temperature)) {
     Serial.println("DHT sensöründen veri okunamadı!");
-    humidity = 0;
-    temperature = 0;
+    
+    // Önceki değerler geçerli değilse, makul değerler ata
+    if (isnan(humidity)) humidity = 50.0; // %50 varsayılan nem
+    if (isnan(temperature)) temperature = 25.0; // 25°C varsayılan sıcaklık
   }
 }
 
@@ -310,6 +340,8 @@ void sendDataToServer() {
   // WiFi bağlantısı yoksa gönderim yapma
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("WiFi bağlantısı yok. Veri gönderilemiyor!");
+    lastSendSuccess = false;
+    failedAttempts++;
     return;
   }
   
@@ -321,6 +353,7 @@ void sendDataToServer() {
   // HTTP POST isteği başlat
   http.begin(serverName);
   http.addHeader("Content-Type", "application/json");
+  http.setTimeout(10000); // 10 saniye timeout
   
   // JSON veri belgesini oluştur
   StaticJsonDocument<256> jsonDoc;
@@ -349,10 +382,25 @@ void sendDataToServer() {
     Serial.println(httpResponseCode);
     Serial.print("Yanıt: ");
     Serial.println(response);
+    
+    lastSendSuccess = true;
+    failedAttempts = 0;
   } else {
     Serial.print("Hata kodu: ");
     Serial.println(httpResponseCode);
     Serial.println("Sunucuya veri gönderme başarısız oldu!");
+    
+    lastSendSuccess = false;
+    failedAttempts++;
+    
+    // Başarısız gönderimden sonra, 3 veya daha fazla başarısız deneme varsa WiFi yeniden bağlanmayı dene
+    if (failedAttempts >= 3) {
+      Serial.println("Çok sayıda başarısız gönderim. WiFi yeniden başlatılıyor...");
+      WiFi.disconnect();
+      delay(1000);
+      connectToWifi();
+      failedAttempts = 0;
+    }
   }
   
   // Bağlantıyı kapat

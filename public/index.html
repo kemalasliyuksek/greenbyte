@@ -78,6 +78,10 @@
                 <i class="fas fa-lightbulb"></i>
                 <span>Aydınlatma</span>
             </a>
+            <a href="#" class="sidebar-item" data-page="water">
+                <i class="fas fa-water"></i>
+                <span>Su Deposu</span>
+            </a>
             <a href="#" class="sidebar-item" data-page="plants">
                 <i class="fas fa-seedling"></i>
                 <span>Bitki Durumu</span>
@@ -131,9 +135,9 @@
                                 <i class="fas fa-thermometer-half"></i>
                             </div>
                             <div class="card-title">SICAKLIK</div>
-                            <div class="card-value">24.5°C</div>
-                            <div class="card-change positive">
-                                <i class="fas fa-arrow-up"></i> 1.2°C (24s)
+                            <div class="card-value" id="temp-value">--°C</div>
+                            <div class="card-change" id="temp-change">
+                                <i class="fas fa-arrow-up"></i> <span>--°C (--s)</span>
                             </div>
                             <div class="chart-bg-icon">
                                 <i class="fas fa-thermometer-half"></i>
@@ -146,9 +150,9 @@
                                 <i class="fas fa-tint"></i>
                             </div>
                             <div class="card-title">NEM</div>
-                            <div class="card-value">68%</div>
-                            <div class="card-change negative">
-                                <i class="fas fa-arrow-down"></i> 3% (15d)
+                            <div class="card-value" id="humidity-value">--%</div>
+                            <div class="card-change" id="humidity-change">
+                                <i class="fas fa-arrow-down"></i> <span>--% (--d)</span>
                             </div>
                             <div class="chart-bg-icon">
                                 <i class="fas fa-tint"></i>
@@ -161,9 +165,9 @@
                                 <i class="fas fa-lightbulb"></i>
                             </div>
                             <div class="card-title">IŞIK SEVİYESİ</div>
-                            <div class="card-value">856 lux</div>
-                            <div class="card-change positive">
-                                <i class="fas fa-arrow-up"></i> 120 lux (5d)
+                            <div class="card-value" id="light-value">-- lux</div>
+                            <div class="card-change" id="light-change">
+                                <i class="fas fa-arrow-up"></i> <span>-- lux (--d)</span>
                             </div>
                             <div class="chart-bg-icon">
                                 <i class="fas fa-lightbulb"></i>
@@ -176,9 +180,9 @@
                                 <i class="fas fa-water"></i>
                             </div>
                             <div class="card-title">TOPRAK NEMİ</div>
-                            <div class="card-value">72%</div>
-                            <div class="card-change positive">
-                                <i class="fas fa-arrow-up"></i> 5% (1s)
+                            <div class="card-value" id="soil-value">--%</div>
+                            <div class="card-change" id="soil-change">
+                                <i class="fas fa-arrow-up"></i> <span>--% (--s)</span>
                             </div>
                             <div class="chart-bg-icon">
                                 <i class="fas fa-water"></i>
@@ -207,7 +211,7 @@
                                         <span>Sıcaklık Kontrol</span>
                                     </div>
                                     <label class="toggle-switch">
-                                        <input type="checkbox" checked>
+                                        <input type="checkbox" id="temp-control-toggle" checked>
                                         <span class="slider"></span>
                                     </label>
                                 </div>
@@ -217,7 +221,7 @@
                                         <span>Nem Kontrol</span>
                                     </div>
                                     <label class="toggle-switch">
-                                        <input type="checkbox" checked>
+                                        <input type="checkbox" id="humidity-control-toggle" checked>
                                         <span class="slider"></span>
                                     </label>
                                 </div>
@@ -227,17 +231,17 @@
                                         <span>Işık Kontrol</span>
                                     </div>
                                     <label class="toggle-switch">
-                                        <input type="checkbox" checked>
+                                        <input type="checkbox" id="light-control-toggle" checked>
                                         <span class="slider"></span>
                                     </label>
                                 </div>
                                 <div class="d-flex justify-content-between align-items-center mb-3">
                                     <div>
-                                        <span class="status-indicator status-warning"></span>
+                                        <span class="status-indicator" id="water-system-status"></span>
                                         <span>Sulama Sistemi</span>
                                     </div>
                                     <label class="toggle-switch">
-                                        <input type="checkbox" checked>
+                                        <input type="checkbox" id="water-system-toggle" checked>
                                         <span class="slider"></span>
                                     </label>
                                 </div>
@@ -247,7 +251,7 @@
                                         <span>Havalandırma</span>
                                     </div>
                                     <label class="toggle-switch">
-                                        <input type="checkbox" checked>
+                                        <input type="checkbox" id="ventilation-toggle" checked>
                                         <span class="slider"></span>
                                     </label>
                                 </div>
@@ -304,16 +308,22 @@
                                     <div class="gauge-indicator" id="co2Indicator" style="transform: rotate(108deg);"></div>
                                     <div class="gauge-center"></div>
                                 </div>
-                                <div class="gauge-value">750 ppm</div>
+                                <div class="gauge-value" id="co2-value">-- ppm</div>
                                 <div class="gauge-label">Optimize Seviye: 800-1200 ppm</div>
                             </div>
                         </div>
                     </div>
                     <div class="col-lg-4">
                         <div class="dashboard-card animate-fadein">
-                            <h5>Su Tüketimi</h5>
-                            <div class="chart-container">
-                                <canvas id="waterUsageChart"></canvas>
+                            <h5>Su Deposu Seviyesi</h5>
+                            <div class="gauge-container mt-3">
+                                <div class="gauge-bg">
+                                    <div class="gauge-fill" id="waterLevelFill" style="height: 0%;"></div>
+                                    <div class="gauge-indicator" id="waterLevelIndicator" style="transform: rotate(0deg);"></div>
+                                    <div class="gauge-center"></div>
+                                </div>
+                                <div class="gauge-value" id="water-level-value">--%</div>
+                                <div class="gauge-label" id="water-level-status">Durum: --</div>
                             </div>
                         </div>
                     </div>
@@ -333,26 +343,9 @@
                                             <th>Durum</th>
                                         </tr>
                                     </thead>
-                                    <tbody>
+                                    <tbody id="activity-log">
                                         <tr>
-                                            <td>19.03.2025 10:24</td>
-                                            <td>Çeri Domates Sulama Sistemi Çalıştırıldı</td>
-                                            <td><span class="badge bg-success">Tamamlandı</span></td>
-                                        </tr>
-                                        <tr>
-                                            <td>19.03.2025 09:15</td>
-                                            <td>Menekşe Bölgesi Nem Kontrolü Ayarlandı</td>
-                                            <td><span class="badge bg-success">Tamamlandı</span></td>
-                                        </tr>
-                                        <tr>
-                                            <td>19.03.2025 08:30</td>
-                                            <td>Havalandırma Açıldı</td>
-                                            <td><span class="badge bg-success">Tamamlandı</span></td>
-                                        </tr>
-                                        <tr>
-                                            <td>19.03.2025 08:00</td>
-                                            <td>Günlük Sistem Kontrolü</td>
-                                            <td><span class="badge bg-success">Tamamlandı</span></td>
+                                            <td colspan="3" class="text-center">Henüz aktivite kaydı yok</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -362,22 +355,12 @@
                     <div class="col-lg-6">
                         <div class="dashboard-card animate-fadein">
                             <h5>Uyarılar ve Bildirimler</h5>
-                            <div class="alert alert-warning d-flex align-items-center mt-3">
-                                <i class="fas fa-exclamation-triangle me-2"></i>
-                                <div>
-                                    <strong>Düşük Su Seviyesi:</strong> Sulama tankındaki su seviyesi %20'ye düştü. Yeniden doldurun.
-                                </div>
-                            </div>
-                            <div class="alert alert-info d-flex align-items-center">
-                                <i class="fas fa-info-circle me-2"></i>
-                                <div>
-                                    <strong>Sistem Güncellemesi:</strong> Yarın 03:00'da otomatik güncelleme gerçekleşecek.
-                                </div>
-                            </div>
-                            <div class="alert alert-success d-flex align-items-center">
-                                <i class="fas fa-check-circle me-2"></i>
-                                <div>
-                                    <strong>Hasat Zamanı:</strong> Bölge C'deki Çeri Domatesler hasat için hazır.
+                            <div id="alerts-container">
+                                <div class="alert alert-info d-flex align-items-center">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <div>
+                                        <strong>Sistem Hazır:</strong> Sensörlerden veri bekleniyor...
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -428,8 +411,8 @@
                             <h5>Mevcut Sıcaklık</h5>
                             <div class="sensor-display">
                                 <i class="fas fa-thermometer-half text-primary"></i>
-                                <h2>24.5°C</h2>
-                                <p class="text-muted">Son Güncelleme: 19.03.2025 10:45</p>
+                                <h2 id="temperature-display">--°C</h2>
+                                <p class="text-muted" id="temperature-last-update">Son Güncelleme: --</p>
                             </div>
                         </div>
                         <div class="dashboard-card mt-3">
@@ -487,8 +470,8 @@
                             <h5>Mevcut Nem</h5>
                             <div class="sensor-display">
                                 <i class="fas fa-tint text-primary"></i>
-                                <h2>68%</h2>
-                                <p class="text-muted">Son Güncelleme: 19.03.2025 10:45</p>
+                                <h2 id="humidity-display">--%</h2>
+                                <p class="text-muted" id="humidity-last-update">Son Güncelleme: --</p>
                             </div>
                         </div>
                         <div class="dashboard-card mt-3">
@@ -498,6 +481,44 @@
                                 <button class="btn btn-outline-primary mb-2 w-100" onclick="updateSensorValue('humidity', 55)">Menekşe (55%)</button>
                                 <button class="btn btn-outline-warning w-100" onclick="updateSensorValue('humidity', 60)">Genel (60%)</button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Su Deposu Sayfası - YENİ -->
+        <div id="water-content" class="page-content temp-humid-page" style="display: none;">
+            <div class="container-fluid px-4">
+                <h1 class="dashboard-title animate-fadein">Su Deposu Kontrolü</h1>
+                <div class="row">
+                    <div class="col-lg-8">
+                        <div class="dashboard-card">
+                            <h5>Su Deposu Durumu</h5>
+                            <div class="chart-container">
+                                <canvas id="waterLevelHistoryChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4 side-cards">
+                        <div class="dashboard-card">
+                            <h5>Mevcut Su Seviyesi</h5>
+                            <div class="sensor-display">
+                                <i class="fas fa-water text-primary"></i>
+                                <h2 id="water-level-display">--%</h2>
+                                <p class="text-muted" id="water-level-last-update">Son Güncelleme: --</p>
+                            </div>
+                        </div>
+                        <div class="dashboard-card mt-3">
+                            <h5>Su Seviyesi Durumu</h5>
+                            <div class="alert alert-info" id="water-level-alert">
+                                Su seviyesi bilgisi yükleniyor...
+                            </div>
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="autoWaterFill" checked>
+                                <label class="form-check-label" for="autoWaterFill">Otomatik Su Doldurma</label>
+                            </div>
+                            <button class="btn btn-primary w-100" id="manual-water-fill">Manuel Su Doldurma</button>
                         </div>
                     </div>
                 </div>
