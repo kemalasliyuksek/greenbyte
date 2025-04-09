@@ -1,7 +1,15 @@
 <?php
-// CORS ayarları (gerektiğinde kullanın)
+// CORS ayarları (tüm isteklere izin ver)
 header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type");
+
+// OPTIONS isteği için erken yanıt
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+
 header("Content-Type: application/json");
 
 // Veritabanı yapılandırmasını içe aktar
@@ -14,11 +22,24 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 // JSON verisini al
 $json_data = file_get_contents('php://input');
+error_log("Alınan ham veri: " . $json_data); // Ham veriyi logla
+
 $data = json_decode($json_data, true);
 
 // JSON verilerinin doğru formatta olup olmadığını kontrol et
-if (!$data || !isset($data['sera_id']) || !isset($data['sensor_data'])) {
-    sendResponse(false, "Geçersiz veri formatı");
+if (!$data) {
+    error_log("JSON parse hatası: " . json_last_error_msg());
+    sendResponse(false, "JSON parse hatası: " . json_last_error_msg());
+}
+
+if (!isset($data['sera_id'])) {
+    error_log("sera_id parametresi bulunamadı");
+    sendResponse(false, "Geçersiz veri formatı: sera_id parametresi gerekli");
+}
+
+if (!isset($data['sensor_data'])) {
+    error_log("sensor_data parametresi bulunamadı");
+    sendResponse(false, "Geçersiz veri formatı: sensor_data parametresi gerekli");
 }
 
 // Veritabanı bağlantısı
@@ -30,6 +51,7 @@ $sera_id = cleanInput($data['sera_id']);
 // Sera ID'sinin veritabanında var olup olmadığını kontrol et
 $check_sera = $conn->query("SELECT id FROM seralar WHERE id = $sera_id");
 if ($check_sera->num_rows === 0) {
+    error_log("Geçersiz sera ID: $sera_id");
     sendResponse(false, "Geçersiz sera ID: $sera_id");
 }
 
@@ -39,8 +61,17 @@ $sensor_data = $data['sensor_data'];
 // Sensorler tablosundan sensör ID'lerini al
 $sensorler = $conn->query("SELECT id, ad FROM sensorler WHERE sera_id = $sera_id");
 
+// Bulunan sensörleri logla
+$sensor_names_found = array();
+while ($row = $sensorler->fetch_assoc()) {
+    $sensor_names_found[$row['ad']] = $row['id'];
+}
+error_log("Bulunan sensörler: " . implode(", ", array_keys($sensor_names_found)));
+
 // Sensör adları ve ID'leri
 $sensor_ids = [];
+// Sorguyu yeniden çalıştır çünkü önceki while döngüsü verileri tüketti
+$sensorler = $conn->query("SELECT id, ad FROM sensorler WHERE sera_id = $sera_id");
 while ($row = $sensorler->fetch_assoc()) {
     $sensor_ids[$row['ad']] = $row['id'];
 }
@@ -50,9 +81,7 @@ $success_count = 0;
 $error_messages = [];
 
 // Sıcaklık ve nem verisi (DHT11)
-if (isset($sensor_data['temperature']) && isset($sensor_data['humidity']) 
-    && isset($sensor_ids['DHT11 Sıcaklık ve Nem Sensörü'])) {
-    
+if (isset($sensor_data['temperature']) && isset($sensor_data['humidity']) && isset($sensor_ids['DHT11 Sıcaklık ve Nem Sensörü'])) {
     $temp = floatval($sensor_data['temperature']);
     $humidity = floatval($sensor_data['humidity']);
     $sensor_id = $sensor_ids['DHT11 Sıcaklık ve Nem Sensörü'];
@@ -61,16 +90,24 @@ if (isset($sensor_data['temperature']) && isset($sensor_data['humidity'])
     $sql_temp = "INSERT INTO sensor_verileri (sensor_id, deger) VALUES ($sensor_id, $temp)";
     if ($conn->query($sql_temp) === TRUE) {
         $success_count++;
+        error_log("Sıcaklık verisi kaydedildi: $temp");
     } else {
         $error_messages[] = "Sıcaklık verisi kaydedilemedi: " . $conn->error;
+        error_log("Sıcaklık verisi kaydedilemedi: " . $conn->error);
     }
     
     // Nem verisini de aynı sensöre kaydet (not: gerçek uygulamada ayrı sensör ID'leri kullanılabilir)
     $sql_humidity = "INSERT INTO sensor_verileri (sensor_id, deger) VALUES ($sensor_id, $humidity)";
     if ($conn->query($sql_humidity) === TRUE) {
         $success_count++;
+        error_log("Nem verisi kaydedildi: $humidity");
     } else {
         $error_messages[] = "Nem verisi kaydedilemedi: " . $conn->error;
+        error_log("Nem verisi kaydedilemedi: " . $conn->error);
+    }
+} else {
+    if (!isset($sensor_ids['DHT11 Sıcaklık ve Nem Sensörü'])) {
+        error_log("DHT11 Sıcaklık ve Nem Sensörü veritabanında bulunamadı");
     }
 }
 
@@ -82,8 +119,14 @@ if (isset($sensor_data['soil_moisture']) && isset($sensor_ids['Toprak Nem Sensö
     $sql = "INSERT INTO sensor_verileri (sensor_id, deger) VALUES ($sensor_id, $soil_moisture)";
     if ($conn->query($sql) === TRUE) {
         $success_count++;
+        error_log("Toprak nem verisi kaydedildi: $soil_moisture");
     } else {
         $error_messages[] = "Toprak nem verisi kaydedilemedi: " . $conn->error;
+        error_log("Toprak nem verisi kaydedilemedi: " . $conn->error);
+    }
+} else {
+    if (!isset($sensor_ids['Toprak Nem Sensörü'])) {
+        error_log("Toprak Nem Sensörü veritabanında bulunamadı");
     }
 }
 
@@ -95,8 +138,14 @@ if (isset($sensor_data['water_level']) && isset($sensor_ids['Su Seviyesi Sensör
     $sql = "INSERT INTO sensor_verileri (sensor_id, deger) VALUES ($sensor_id, $water_level)";
     if ($conn->query($sql) === TRUE) {
         $success_count++;
+        error_log("Su seviyesi verisi kaydedildi: $water_level");
     } else {
         $error_messages[] = "Su seviyesi verisi kaydedilemedi: " . $conn->error;
+        error_log("Su seviyesi verisi kaydedilemedi: " . $conn->error);
+    }
+} else {
+    if (!isset($sensor_ids['Su Seviyesi Sensörü'])) {
+        error_log("Su Seviyesi Sensörü veritabanında bulunamadı");
     }
 }
 
@@ -108,8 +157,14 @@ if (isset($sensor_data['light_level']) && isset($sensor_ids['Hava Kalite Sensör
     $sql = "INSERT INTO sensor_verileri (sensor_id, deger) VALUES ($sensor_id, $light_level)";
     if ($conn->query($sql) === TRUE) {
         $success_count++;
+        error_log("Işık seviyesi verisi kaydedildi: $light_level");
     } else {
         $error_messages[] = "Işık seviyesi verisi kaydedilemedi: " . $conn->error;
+        error_log("Işık seviyesi verisi kaydedilemedi: " . $conn->error);
+    }
+} else {
+    if (!isset($sensor_ids['Hava Kalite Sensörü'])) {
+        error_log("Hava Kalite Sensörü veritabanında bulunamadı");
     }
 }
 
@@ -127,3 +182,4 @@ if ($success_count > 0) {
         'errors' => $error_messages
     ]);
 }
+?>

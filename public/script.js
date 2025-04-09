@@ -6,8 +6,10 @@ let waterLevelHistoryChart;
 // Aktivite log verisi - varsayılan olarak boş
 let activityLogs = [];
 
-// API URL'leri
-const API_BASE_URL = "http://kemalasliyuksek.com/greenbyte/api";
+// API URL'leri - Güncellenmiş ve düzeltilmiş
+const API_BASE_URL = window.location.protocol + "//" + window.location.hostname + "/greenbyte/api";
+// veya mutlak yolu kullanabilirsiniz:
+// const API_BASE_URL = "http://kemalasliyuksek.com/greenbyte/api";
 const LATEST_DATA_URL = `${API_BASE_URL}/get_latest_data.php`;
 const HISTORICAL_DATA_URL = `${API_BASE_URL}/get_historical_data.php`;
 
@@ -40,14 +42,18 @@ async function fetchSensorData() {
         // Sera ID'si
         const seraID = 1;
         
+        console.log(`Veri alınıyor: ${LATEST_DATA_URL}?seraID=${seraID}`);
+        
         // En son sensör verilerini al
         const response = await fetch(`${LATEST_DATA_URL}?seraID=${seraID}`);
         
         if (!response.ok) {
+            console.error(`HTTP hata kodu: ${response.status}`);
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
         const data = await response.json();
+        console.log("Alınan veri:", data);
         
         // Eğer verilerde hata varsa, bir hata fırlat
         if (!data.success && data.message) {
@@ -89,13 +95,17 @@ async function fetchHistoricalData() {
         
         // Son 24 saatin verilerini al
         const hours = 24;
+        console.log(`Geçmiş veriler alınıyor: ${HISTORICAL_DATA_URL}?seraID=${seraID}&hours=${hours}&type=all`);
+        
         const response = await fetch(`${HISTORICAL_DATA_URL}?seraID=${seraID}&hours=${hours}&type=all`);
         
         if (!response.ok) {
+            console.error(`HTTP hata kodu: ${response.status}`);
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
         const data = await response.json();
+        console.log("Alınan geçmiş veriler:", data);
         
         // Boş diziler oluştur - varsayılan olarak boş olsun
         let tempHistory = [];
