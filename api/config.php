@@ -1,8 +1,8 @@
 <?php
 // Veritabanı bağlantı ayarları
-$db_host = "92.205.171.9"; // Veritabanı sunucusu
-$db_user = "admin"; // Veritabanı kullanıcı adı
-$db_pass = "Ke3@1.3ySq1"; // Veritabanı şifresi
+$db_host = "localhost"; // Muhtemelen "localhost" olmalı
+$db_user = "cpses_un6wedh510_admin"; // Kontrol panelinden doğru kullanıcı adı
+$db_pass = "Ke3@1.3ySq1"; // Kullanıcınızın şifresi
 $db_name = "greenbyte"; // Veritabanı adı
 
 // Veritabanı bağlantısını oluştur
