@@ -77,10 +77,15 @@ CREATE TABLE bitki_turleri (
     max_sicaklik FLOAT,
     min_nem FLOAT,
     max_nem FLOAT,
-    isik_ihtiyaci VARCHAR(100),
-    sulama_seviyesi VARCHAR(50),
+    min_gunluk_isik_saati FLOAT,
+    max_gunluk_isik_saati FLOAT,
+    min_isik_yogunlugu INT,
+    max_isik_yogunlugu INT,
+    min_toprak_nemi FLOAT,
+    max_toprak_nemi FLOAT,
+    sulama_sikligi INT,
     yetistirme_suresi INT,
-    notu TEXT,
+    notlar TEXT,
     eklenme_tarihi DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -93,7 +98,7 @@ CREATE TABLE bitkiler (
     ekim_tarihi DATE NOT NULL,
     gelisim_yuzdesi FLOAT DEFAULT 0,
     tahmini_hasat_tarihi DATE,
-    notu TEXT,
+    not TEXT,
     durum ENUM('aktif', 'hasat_edildi', 'iptal') DEFAULT 'aktif',
     son_guncelleme DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (sera_id) REFERENCES seralar(id) ON DELETE CASCADE,
