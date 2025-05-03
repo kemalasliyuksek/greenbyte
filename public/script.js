@@ -63,6 +63,8 @@ async function fetchSensorData() {
             soilMoisture: data.soilMoisture ? data.soilMoisture.value : null,
             lightLevel: data.lightLevel ? data.lightLevel.value : null,
             waterLevel: data.waterLevel ? data.waterLevel.value : null,
+            co2Level: data.co2Level ? data.co2Level.value : null,
+            smokeDetected: data.smokeDetected ? data.smokeDetected.value : false,
             lastUpdated: data.temperature ? new Date(data.temperature.timestamp) : new Date()
         };
     } catch (error) {
@@ -76,6 +78,8 @@ async function fetchSensorData() {
             soilMoisture: null,
             lightLevel: null,
             waterLevel: null,
+            co2Level: null,
+            smokeDetected: false,
             lastUpdated: new Date()
         };
     }
@@ -109,6 +113,8 @@ async function fetchHistoricalData() {
         let waterLevelHistory = [];
         let lightLevelHistory = [];
         let soilMoistureHistory = [];
+        let co2LevelHistory = [];
+        let smokeDetectedHistory = [];
         
         // Eğer veri varsa, sıcaklık geçmişini güncelle
         if (data.temperature && data.temperature.length > 0) {
@@ -132,6 +138,14 @@ async function fetchHistoricalData() {
             soilMoistureHistory = data.soilMoisture.map(item => item.value);
         }
         
+        if (data.co2Level && data.co2Level.length > 0) {
+            co2LevelHistory = data.co2Level.map(item => item.value);
+        }
+        
+        if (data.smokeDetected && data.smokeDetected.length > 0) {
+            smokeDetectedHistory = data.smokeDetected.map(item => item.value);
+        }
+        
         // Zaman etiketlerini güncelle
         if (data.temperature && data.temperature.length > 0) {
             // Zaman etiketlerini güncelle
@@ -151,11 +165,22 @@ async function fetchHistoricalData() {
         console.log("İşlenmiş veriler:", {
             tempHistory: tempHistory.length,
             humidityHistory: humidityHistory.length,
-            timeLabels: timeLabels.length
+            timeLabels: timeLabels.length,
+            co2LevelHistory: co2LevelHistory.length,
+            smokeDetectedHistory: smokeDetectedHistory.length
         });
         
         // Veri dizilerinin boyutlarını kontrol et ve eşitle
-        const maxLength = Math.max(tempHistory.length, humidityHistory.length);
+        const maxLength = Math.max(
+            tempHistory.length, 
+            humidityHistory.length,
+            waterLevelHistory.length,
+            lightLevelHistory.length,
+            soilMoistureHistory.length,
+            co2LevelHistory.length,
+            smokeDetectedHistory.length
+        );
+        
         if (maxLength > 0) {
             // Zaman etiketlerini veri sayısıyla eşleştir
             while (timeLabels.length < maxLength) {
@@ -174,7 +199,9 @@ async function fetchHistoricalData() {
             humidityHistory: humidityHistory,
             waterLevelHistory: waterLevelHistory,
             lightLevelHistory: lightLevelHistory,
-            soilMoistureHistory: soilMoistureHistory
+            soilMoistureHistory: soilMoistureHistory,
+            co2LevelHistory: co2LevelHistory,
+            smokeDetectedHistory: smokeDetectedHistory
         };
     } catch (error) {
         console.error('Geçmiş verileri alma hatası:', error);
@@ -186,7 +213,9 @@ async function fetchHistoricalData() {
             humidityHistory: [],
             waterLevelHistory: [],
             lightLevelHistory: [],
-            soilMoistureHistory: []
+            soilMoistureHistory: [],
+            co2LevelHistory: [],
+            smokeDetectedHistory: []
         };
     }
 }
@@ -311,6 +340,19 @@ function updateHistoryChart(data, type) {
                 data: data.waterLevel.map(item => item.value),
                 borderColor: '#00BCD4',
                 backgroundColor: 'rgba(0, 188, 212, 0.1)',
+                tension: 0.4,
+                fill: false
+            });
+        }
+    }
+    
+    if (type === 'all' || type === 'co2') {
+        if (data.co2Level && data.co2Level.length > 0) {
+            datasets.push({
+                label: 'CO2 Seviyesi (ppm)',
+                data: data.co2Level.map(item => item.value),
+                borderColor: '#9C27B0',
+                backgroundColor: 'rgba(156, 39, 176, 0.1)',
                 tension: 0.4,
                 fill: false
             });
@@ -515,8 +557,8 @@ function updateDashboard(data) {
     // Su seviyesi göstergesini güncelle
     updateWaterLevelGauge(data.waterLevel);
     
-    // CO2 seviyesini güncelle (ESP32 kodundan gelen değer - simüle edilmiş)
-    updateCO2Gauge(data.lightLevel ? (data.lightLevel * 10) + 400 : null);
+    // CO2 seviyesini güncelle (gerçek CO2 verisini kullan)
+    updateCO2Gauge(data.co2Level);
     
     // Sıcaklık ve Nem sayfalarındaki mevcut değerleri güncelle
     updateSensorDisplayPage('temperature', data.temperature, '°C', data.lastUpdated);
@@ -737,6 +779,11 @@ function updateAlerts(data) {
     // Uyarıları temizle
     alertsContainer.innerHTML = '';
     
+    // Duman algılama uyarısı
+    if (data.smokeDetected) {
+        addAlert('danger', 'DUMAN ALGILANDI!', 'Sera içinde duman algılandı! Acil durum kontrolleri yapın ve gerekirse itfaiyeye haber verin.');
+    }
+    
     // Su seviyesi uyarısı
     if (data.waterLevel !== null && data.waterLevel !== undefined) {
         if (data.waterLevel < 20) {
@@ -769,6 +816,15 @@ function updateAlerts(data) {
         }
     }
     
+    // CO2 seviyesi uyarısı
+    if (data.co2Level !== null && data.co2Level !== undefined) {
+        if (data.co2Level > 1500) {
+            addAlert('warning', 'Yüksek CO2 Seviyesi', `CO2 seviyesi ${data.co2Level.toFixed(0)} ppm. Havalandırma gerekli olabilir.`);
+        } else if (data.co2Level < 400) {
+            addAlert('info', 'Düşük CO2 Seviyesi', `CO2 seviyesi ${data.co2Level.toFixed(0)} ppm. Optimum bitki büyümesi için 800-1200 ppm arası önerilir.`);
+        }
+    }
+    
     // Hiç uyarı yoksa ve veriler geliyorsa
     if (alertsContainer.innerHTML === '' && data.temperature !== null) {
         addAlert('success', 'Sistem Normal', 'Tüm sensör verileri normal aralıkta. Sistemde herhangi bir sorun tespit edilmedi.');
@@ -776,7 +832,7 @@ function updateAlerts(data) {
     
     // Hiç veri yoksa
     if (data.temperature === null && data.humidity === null && data.soilMoisture === null && 
-        data.lightLevel === null && data.waterLevel === null) {
+        data.lightLevel === null && data.waterLevel === null && data.co2Level === null) {
         addAlert('info', 'Veri Alınamıyor', 'Sensör verileri alınamıyor. Lütfen bağlantıları kontrol edin.');
     }
 }
@@ -1213,6 +1269,18 @@ function initDashboard() {
                 }
             }
         });
+    }
+    
+    // Geçmiş veriler dropdown'una CO2 ve duman algılama seçeneklerini ekle
+    const historyTypeSelect = document.getElementById('historyType');
+    if (historyTypeSelect) {
+        // CO2 seçeneği yoksa ekle
+        if (!Array.from(historyTypeSelect.options).some(option => option.value === 'co2')) {
+            const co2Option = document.createElement('option');
+            co2Option.value = 'co2';
+            co2Option.textContent = 'CO2 Seviyesi';
+            historyTypeSelect.appendChild(co2Option);
+        }
     }
     
     // Başlangıç verilerini al ve güncelleme döngüsünü başlat

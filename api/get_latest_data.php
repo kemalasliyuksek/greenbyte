@@ -57,7 +57,7 @@ while ($sensor = $sensorler->fetch_assoc()) {
 // DHT11 sensörü bulunduysa, hem sıcaklık hem nem için iki ayrı sorgu yap
 if ($dht11_sensor_id !== null) {
     // Son iki kaydı al (biri sıcaklık, biri nem)
-    $query = "SELECT deger, kayit_zamani 
+    $query = "SELECT deger, kayit_zamani, veri_tipi 
             FROM sensor_verileri 
             WHERE sensor_id = $dht11_sensor_id 
             ORDER BY kayit_zamani DESC 
@@ -109,14 +109,68 @@ while ($sensor = $sensorler->fetch_assoc()) {
         continue;
     }
     
-    // Bu sensör için en son veriyi al
-    $query = "SELECT deger, kayit_zamani 
+    // Bu sensör için en son verileri al - veri_tipi kontrolüyle
+    $query = "SELECT deger, kayit_zamani, veri_tipi 
               FROM sensor_verileri 
               WHERE sensor_id = $sensor_id 
-              ORDER BY kayit_zamani DESC 
-              LIMIT 1";
+              ORDER BY kayit_zamani DESC";
     
-    $data = $conn->query($query);
+    // Özel sensör tipleri için sorguyu düzenle
+    if (strpos($sensor_name, 'Hava Kalite') !== false) {
+        // Hava kalite sensörü için en son farklı tip verileri al
+        // CO2 verisi
+        $co2_query = "SELECT deger, kayit_zamani 
+                  FROM sensor_verileri 
+                  WHERE sensor_id = $sensor_id AND (veri_tipi = 'co2' OR veri_tipi IS NULL)
+                  ORDER BY kayit_zamani DESC 
+                  LIMIT 1";
+        
+        $co2_data = $conn->query($co2_query);
+        if ($co2_data->num_rows > 0) {
+            $row = $co2_data->fetch_assoc();
+            $result['co2Level'] = [
+                'value' => floatval($row['deger']),
+                'timestamp' => $row['kayit_zamani']
+            ];
+        }
+        
+        // Duman verisi
+        $smoke_query = "SELECT deger, kayit_zamani 
+                    FROM sensor_verileri 
+                    WHERE sensor_id = $sensor_id AND veri_tipi = 'smoke'
+                    ORDER BY kayit_zamani DESC 
+                    LIMIT 1";
+        
+        $smoke_data = $conn->query($smoke_query);
+        if ($smoke_data->num_rows > 0) {
+            $row = $smoke_data->fetch_assoc();
+            $result['smokeDetected'] = [
+                'value' => (floatval($row['deger']) > 0),
+                'timestamp' => $row['kayit_zamani']
+            ];
+        }
+        
+        // Işık seviyesi için normal sorgu
+        $light_query = "SELECT deger, kayit_zamani 
+                    FROM sensor_verileri 
+                    WHERE sensor_id = $sensor_id AND (veri_tipi IS NULL OR veri_tipi = 'light')
+                    ORDER BY kayit_zamani DESC 
+                    LIMIT 1";
+        
+        $light_data = $conn->query($light_query);
+        if ($light_data->num_rows > 0) {
+            $row = $light_data->fetch_assoc();
+            $result['lightLevel'] = [
+                'value' => floatval($row['deger']),
+                'timestamp' => $row['kayit_zamani']
+            ];
+        }
+        
+        continue; // Bu sensör için işlem tamamlandı, sonraki sensöre geç
+    }
+    
+    // Standart sensörler için normal sorgu
+    $data = $conn->query($query . " LIMIT 1");
     
     if ($data->num_rows > 0) {
         $row = $data->fetch_assoc();
@@ -132,10 +186,19 @@ while ($sensor = $sensorler->fetch_assoc()) {
                 'value' => floatval($row['deger']),
                 'timestamp' => $row['kayit_zamani']
             ];
-        } else if (strpos($sensor_name, 'Hava') !== false || strpos($sensor_name, 'Işık') !== false) {
-            // Hava kalite sensörünü ışık seviyesi için kullanıyoruz
+        } else if (strpos($sensor_name, 'Işık') !== false) {
             $result['lightLevel'] = [
                 'value' => floatval($row['deger']),
+                'timestamp' => $row['kayit_zamani']
+            ];
+        } else if (strpos($sensor_name, 'CO2') !== false) {
+            $result['co2Level'] = [
+                'value' => floatval($row['deger']),
+                'timestamp' => $row['kayit_zamani']
+            ];
+        } else if (strpos($sensor_name, 'Duman') !== false) {
+            $result['smokeDetected'] = [
+                'value' => (floatval($row['deger']) > 0),
                 'timestamp' => $row['kayit_zamani']
             ];
         }

@@ -66,7 +66,7 @@ while ($sensor = $sensorler->fetch_assoc()) {
     
     // Bu sensör için geçmiş verileri al
     $query = "
-        SELECT deger, kayit_zamani 
+        SELECT deger, kayit_zamani, veri_tipi
         FROM sensor_verileri 
         WHERE sensor_id = $sensor_id 
             AND kayit_zamani >= '$start_time'
@@ -88,8 +88,52 @@ while ($sensor = $sensorler->fetch_assoc()) {
         }
     } else if (strpos($sensor_name, 'Su') !== false) {
         $key = 'waterLevel';
-    } else if (strpos($sensor_name, 'Hava') !== false || strpos($sensor_name, 'Işık') !== false) {
-        $key = 'lightLevel'; // Hava kalite sensörünü ışık seviyesi için kullanıyoruz
+    } else if (strpos($sensor_name, 'Işık') !== false) {
+        $key = 'lightLevel';
+    } else if (strpos($sensor_name, 'Hava Kalite') !== false) {
+        // Hava Kalite sensörü için veri tipine göre farklı keyler kullan
+        $rows = [];
+        $co2_rows = [];
+        $smoke_rows = [];
+        $air_quality_rows = [];
+        
+        while ($row = $data->fetch_assoc()) {
+            if (isset($row['veri_tipi']) && $row['veri_tipi'] == 'co2') {
+                $co2_rows[] = [
+                    'value' => floatval($row['deger']),
+                    'timestamp' => $row['kayit_zamani']
+                ];
+            } else if (isset($row['veri_tipi']) && $row['veri_tipi'] == 'smoke') {
+                $smoke_rows[] = [
+                    'value' => (floatval($row['deger']) > 0),
+                    'timestamp' => $row['kayit_zamani']
+                ];
+            } else {
+                // Varsayılan olarak hava kalitesi/ışık seviyesi
+                $air_quality_rows[] = [
+                    'value' => floatval($row['deger']),
+                    'timestamp' => $row['kayit_zamani']
+                ];
+            }
+        }
+        
+        if (count($co2_rows) > 0) {
+            $result['co2Level'] = $co2_rows;
+        }
+        
+        if (count($smoke_rows) > 0) {
+            $result['smokeDetected'] = $smoke_rows;
+        }
+        
+        if (count($air_quality_rows) > 0) {
+            $result['lightLevel'] = $air_quality_rows;
+        }
+        
+        continue; // Bu sensör için işlem tamamlandı
+    } else if (strpos($sensor_name, 'CO2') !== false) {
+        $key = 'co2Level';
+    } else if (strpos($sensor_name, 'Duman') !== false) {
+        $key = 'smokeDetected';
     }
     
     // Key belirlenmişse ve veri varsa ekle
@@ -97,10 +141,18 @@ while ($sensor = $sensorler->fetch_assoc()) {
         $result[$key] = [];
         
         while ($row = $data->fetch_assoc()) {
-            $result[$key][] = [
-                'value' => floatval($row['deger']),
-                'timestamp' => $row['kayit_zamani']
-            ];
+            // Smoke verisi için boolean değer dön
+            if ($key === 'smokeDetected') {
+                $result[$key][] = [
+                    'value' => (floatval($row['deger']) > 0),
+                    'timestamp' => $row['kayit_zamani']
+                ];
+            } else {
+                $result[$key][] = [
+                    'value' => floatval($row['deger']),
+                    'timestamp' => $row['kayit_zamani']
+                ];
+            }
         }
     }
 }

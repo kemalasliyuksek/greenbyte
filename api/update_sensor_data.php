@@ -149,10 +149,10 @@ if (isset($sensor_data['water_level']) && isset($sensor_ids['Su Seviyesi Sensör
     }
 }
 
-// Işık seviyesi verisi (Hava Kalite Sensörü olarak kullanıyoruz, çünkü var olan sensörlerden en uygun bu)
-if (isset($sensor_data['light_level']) && isset($sensor_ids['Hava Kalite Sensörü'])) {
+// Işık seviyesi verisi 
+if (isset($sensor_data['light_level']) && isset($sensor_ids['Işık Seviyesi Sensörü'])) {
     $light_level = floatval($sensor_data['light_level']);
-    $sensor_id = $sensor_ids['Hava Kalite Sensörü'];
+    $sensor_id = $sensor_ids['Işık Seviyesi Sensörü'];
     
     $sql = "INSERT INTO sensor_verileri (sensor_id, deger) VALUES ($sensor_id, $light_level)";
     if ($conn->query($sql) === TRUE) {
@@ -162,9 +162,78 @@ if (isset($sensor_data['light_level']) && isset($sensor_ids['Hava Kalite Sensör
         $error_messages[] = "Işık seviyesi verisi kaydedilemedi: " . $conn->error;
         error_log("Işık seviyesi verisi kaydedilemedi: " . $conn->error);
     }
+} else if (isset($sensor_data['light_level']) && isset($sensor_ids['Hava Kalite Sensörü'])) {
+    // Alternatif olarak Hava Kalite Sensörünü ışık seviyesi için kullan
+    $light_level = floatval($sensor_data['light_level']);
+    $sensor_id = $sensor_ids['Hava Kalite Sensörü'];
+    
+    $sql = "INSERT INTO sensor_verileri (sensor_id, deger) VALUES ($sensor_id, $light_level)";
+    if ($conn->query($sql) === TRUE) {
+        $success_count++;
+        error_log("Işık seviyesi verisi kaydedildi (Hava Kalite Sensörü üzerinden): $light_level");
+    } else {
+        $error_messages[] = "Işık seviyesi verisi kaydedilemedi: " . $conn->error;
+        error_log("Işık seviyesi verisi kaydedilemedi: " . $conn->error);
+    }
 } else {
-    if (!isset($sensor_ids['Hava Kalite Sensörü'])) {
-        error_log("Hava Kalite Sensörü veritabanında bulunamadı");
+    if (!isset($sensor_ids['Işık Seviyesi Sensörü']) && !isset($sensor_ids['Hava Kalite Sensörü'])) {
+        error_log("Işık Seviyesi Sensörü veya Hava Kalite Sensörü veritabanında bulunamadı");
+    }
+}
+
+// CO2 seviyesi verisi
+if (isset($sensor_data['co2_ppm']) && isset($sensor_ids['CO2 Sensörü'])) {
+    $co2_level = floatval($sensor_data['co2_ppm']);
+    $sensor_id = $sensor_ids['CO2 Sensörü'];
+    
+    $sql = "INSERT INTO sensor_verileri (sensor_id, deger) VALUES ($sensor_id, $co2_level)";
+    if ($conn->query($sql) === TRUE) {
+        $success_count++;
+        error_log("CO2 seviyesi verisi kaydedildi: $co2_level");
+    } else {
+        $error_messages[] = "CO2 seviyesi verisi kaydedilemedi: " . $conn->error;
+        error_log("CO2 seviyesi verisi kaydedilemedi: " . $conn->error);
+    }
+} else if (isset($sensor_data['co2_ppm']) && isset($sensor_ids['Hava Kalite Sensörü'])) {
+    // Alternatif olarak Hava Kalite Sensörünü CO2 için kullan
+    $co2_level = floatval($sensor_data['co2_ppm']);
+    $sensor_id = $sensor_ids['Hava Kalite Sensörü'];
+    
+    $sql = "INSERT INTO sensor_verileri (sensor_id, deger, veri_tipi) VALUES ($sensor_id, $co2_level, 'co2')";
+    if ($conn->query($sql) === TRUE) {
+        $success_count++;
+        error_log("CO2 seviyesi verisi kaydedildi (Hava Kalite Sensörü üzerinden): $co2_level");
+    } else {
+        $error_messages[] = "CO2 seviyesi verisi kaydedilemedi: " . $conn->error;
+        error_log("CO2 seviyesi verisi kaydedilemedi: " . $conn->error);
+    }
+}
+
+// Duman/yangın durumu verisi
+if (isset($sensor_data['smoke_detected']) && isset($sensor_ids['Duman Sensörü'])) {
+    $smoke_detected = $sensor_data['smoke_detected'] ? 1 : 0;
+    $sensor_id = $sensor_ids['Duman Sensörü'];
+    
+    $sql = "INSERT INTO sensor_verileri (sensor_id, deger) VALUES ($sensor_id, $smoke_detected)";
+    if ($conn->query($sql) === TRUE) {
+        $success_count++;
+        error_log("Duman durumu verisi kaydedildi: $smoke_detected");
+    } else {
+        $error_messages[] = "Duman durumu verisi kaydedilemedi: " . $conn->error;
+        error_log("Duman durumu verisi kaydedilemedi: " . $conn->error);
+    }
+} else if (isset($sensor_data['smoke_detected']) && isset($sensor_ids['Hava Kalite Sensörü'])) {
+    // Alternatif olarak Hava Kalite Sensörünü duman algılama için kullan
+    $smoke_detected = $sensor_data['smoke_detected'] ? 1 : 0;
+    $sensor_id = $sensor_ids['Hava Kalite Sensörü'];
+    
+    $sql = "INSERT INTO sensor_verileri (sensor_id, deger, veri_tipi) VALUES ($sensor_id, $smoke_detected, 'smoke')";
+    if ($conn->query($sql) === TRUE) {
+        $success_count++;
+        error_log("Duman durumu verisi kaydedildi (Hava Kalite Sensörü üzerinden): $smoke_detected");
+    } else {
+        $error_messages[] = "Duman durumu verisi kaydedilemedi: " . $conn->error;
+        error_log("Duman durumu verisi kaydedilemedi: " . $conn->error);
     }
 }
 
