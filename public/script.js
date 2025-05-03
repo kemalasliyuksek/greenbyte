@@ -551,7 +551,7 @@ function updateDashboard(data) {
     // Temel sensör kartlarını güncelle
     updateSensorCard('temp', data.temperature, '°C');
     updateSensorCard('humidity', data.humidity, '%');
-    updateSensorCard('light', data.lightLevel, ' lux');
+    updateSensorCard('light', data.lightLevel, '%'); // Birim lux yerine % olarak düzeltildi
     updateSensorCard('soil', data.soilMoisture, '%');
     
     // Su seviyesi göstergesini güncelle
@@ -564,7 +564,7 @@ function updateDashboard(data) {
     updateSensorDisplayPage('temperature', data.temperature, '°C', data.lastUpdated);
     updateSensorDisplayPage('humidity', data.humidity, '%', data.lastUpdated);
     updateSensorDisplayPage('water-level', data.waterLevel, '%', data.lastUpdated);
-    updateSensorDisplayPage('light-level', data.lightLevel, ' lux', data.lastUpdated);
+    updateSensorDisplayPage('light-level', data.lightLevel, '%', data.lastUpdated); // Birim lux yerine % olarak düzeltildi
     
     // Sistem durumunu güncelle
     updateSystemStatus(data);
@@ -586,10 +586,18 @@ function updateSensorCard(sensorId, value, unit) {
     if (!valueElement) return;
     
     if (value !== null && value !== undefined) {
-        // Sayısal değer göster
-        valueElement.textContent = typeof value === 'number' ? 
-            value.toFixed(1) + unit : 
-            value + unit;
+        // Işık seviyesi için birim düzeltmesi
+        if (sensorId === 'light') {
+            // Işık seviyesi yüzde olarak gösterilmeli, lux değil
+            valueElement.textContent = typeof value === 'number' ? 
+                value.toFixed(1) + '%' : 
+                value + '%';
+        } else {
+            // Diğer sensörler için normal gösterim
+            valueElement.textContent = typeof value === 'number' ? 
+                value.toFixed(1) + unit : 
+                value + unit;
+        }
             
         // Değişim bilgisini gizle/göster
         if (changeElement) {
@@ -597,7 +605,11 @@ function updateSensorCard(sensorId, value, unit) {
         }
     } else {
         // Veri yoksa belirsiz göster
-        valueElement.textContent = `--${unit}`;
+        if (sensorId === 'light') {
+            valueElement.textContent = `--%`; // Işık için doğru birim
+        } else {
+            valueElement.textContent = `--${unit}`;
+        }
         
         if (changeElement) {
             changeElement.innerHTML = `<i class="fas fa-exclamation-circle"></i> <span>Veri yok</span>`;
@@ -619,16 +631,28 @@ function updateSensorDisplayPage(sensorId, value, unit, lastUpdated) {
     if (!displayElement || !lastUpdateElement) return;
     
     if (value !== null && value !== undefined) {
-        // Sayısal değer göster
-        displayElement.textContent = typeof value === 'number' ? 
-            value.toFixed(1) + unit : 
-            value + unit;
+        // Işık seviyesi için birim düzeltmesi
+        if (sensorId === 'light-level') {
+            // Işık seviyesi yüzde olarak gösterilmeli
+            displayElement.textContent = typeof value === 'number' ? 
+                value.toFixed(1) + '%' : 
+                value + '%';
+        } else {
+            // Diğer sensörler için normal gösterim
+            displayElement.textContent = typeof value === 'number' ? 
+                value.toFixed(1) + unit : 
+                value + unit;
+        }
         
         // Son güncelleme zamanını göster
         lastUpdateElement.textContent = `Son Güncelleme: ${formatDateTime(lastUpdated)}`;
     } else {
         // Veri yoksa belirsiz göster
-        displayElement.textContent = `--${unit}`;
+        if (sensorId === 'light-level') {
+            displayElement.textContent = `--%`; // Işık için doğru birim
+        } else {
+            displayElement.textContent = `--${unit}`;
+        }
         lastUpdateElement.textContent = `Son Güncelleme: Veri yok`;
     }
 }
@@ -646,12 +670,34 @@ function updateCO2Gauge(co2Level) {
     
     if (co2Level !== null && co2Level !== undefined) {
         // CO2 seviyesi değerini ayarla (400-2000 ppm aralığında)
-        const co2Percentage = Math.min(Math.max((co2Level - 400) / 1600, 0), 1) * 100;
+        // Burada hesaplama düzeltildi - daha geniş aralık kullanıldı
+        const minCO2 = 400;  // Atmosferik minimum
+        const maxCO2 = 2000; // Normal maksimum
+        
+        // Yüzde hesabı düzeltildi
+        let co2Percentage;
+        if (co2Level <= minCO2) {
+            co2Percentage = 0;
+        } else if (co2Level >= maxCO2) {
+            co2Percentage = 100;
+        } else {
+            co2Percentage = ((co2Level - minCO2) / (maxCO2 - minCO2)) * 100;
+        }
+        
         const co2Angle = (co2Percentage / 100) * 180;
         
         co2Fill.style.height = `${co2Percentage}%`;
         co2Indicator.style.transform = `rotate(${co2Angle}deg)`;
         co2Value.textContent = `${Math.round(co2Level)} ppm`;
+        
+        // Renk değişimi eklendi - yüksek değerler için uyarı
+        if (co2Level > 1500) {
+            co2Fill.style.background = 'linear-gradient(180deg, #ff9800 0%, #f44336 100%)';
+        } else if (co2Level > 1000) {
+            co2Fill.style.background = 'linear-gradient(180deg, #ffeb3b 0%, #ff9800 100%)';
+        } else {
+            co2Fill.style.background = 'linear-gradient(180deg, #64B5F6 0%, #1976D2 100%)';
+        }
     } else {
         // Veri yoksa belirsiz göster
         co2Fill.style.height = '0%';
