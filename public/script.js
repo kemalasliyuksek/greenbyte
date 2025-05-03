@@ -1,12 +1,12 @@
 // Global değişkenler
 let tempHumidityChart;
-let waterUsageChart;
 let waterLevelHistoryChart;
+let historyChart;
 
 // Aktivite log verisi - varsayılan olarak boş
 let activityLogs = [];
 
-// API URL'leri - Güncellenmiş ve düzeltilmiş
+// API URL'leri
 const API_BASE_URL = window.location.protocol + "//" + window.location.hostname + "/greenbyte/api";
 // veya mutlak yolu kullanabilirsiniz:
 // const API_BASE_URL = "http://kemalasliyuksek.com/greenbyte/api";
@@ -23,12 +23,8 @@ let timeLabels = [];
  */
 function updateSensorValue(sensorType, value) {
     // Ayarları güncellemek için kullanılan bir fonksiyon
-    // Gerçek sensör değerlerini değiştirmez, sadece ayarları günceller
     
     showNotification(`${sensorType} ayarı ${value} olarak güncellendi`, 'success');
-    
-    // Gerekli API isteğini burada yapabilirsiniz
-    // Örneğin: bir ayar değişikliği API'si ile sunucuya bildirebilirsiniz
     
     // Aktivite log'a ekle
     addActivityLog(`${capitalizeFirstLetter(sensorType)} ayarı değiştirildi`, 'Tamamlandı');
@@ -88,7 +84,6 @@ async function fetchSensorData() {
 /**
  * Geçmiş sensör verilerini API'den alan fonksiyon
  */
-// fetchHistoricalData fonksiyonunda yapılacak düzeltme
 async function fetchHistoricalData() {
     try {
         // Sera ID'si
@@ -112,34 +107,12 @@ async function fetchHistoricalData() {
         let tempHistory = [];
         let humidityHistory = [];
         let waterLevelHistory = [];
+        let lightLevelHistory = [];
+        let soilMoistureHistory = [];
         
         // Eğer veri varsa, sıcaklık geçmişini güncelle
         if (data.temperature && data.temperature.length > 0) {
-            // API'den gelen temperature verisi varsa işle
             tempHistory = data.temperature.map(item => item.value);
-            
-            // Nem verileri yoksa ve sıcaklık verileri varsa
-            // DHT11 sensörü için: Sıcaklık ve nem verileri aynı sensörden gelir
-            // İki değer art arda kaydedilir (ilk sıcaklık, sonra nem)
-            if ((!data.humidity || data.humidity.length === 0) && data.temperature.length > 1) {
-                console.log("Nem verisi bulunamadı, DHT11 verilerinden oluşturuluyor...");
-                
-                // DHT11 sensöründen gelen verilerin işlenmesi:
-                // ESP32 kodunda önce sıcaklık sonra nem verileri gönderiliyor
-                // Bu nedenle veritabanındaki sıralama: [sıcaklık, nem, sıcaklık, nem, ...]
-                
-                // Tek indisli değerleri (1, 3, 5, ...) nem olarak kabul et
-                humidityHistory = [];
-                for (let i = 1; i < data.temperature.length; i += 2) {
-                    humidityHistory.push(data.temperature[i].value);
-                }
-                
-                // Çift indisli değerleri (0, 2, 4, ...) sıcaklık olarak kabul et
-                tempHistory = [];
-                for (let i = 0; i < data.temperature.length; i += 2) {
-                    tempHistory.push(data.temperature[i].value);
-                }
-            }
         }
         
         // Eğer API'den gelen humidity verisi varsa işle
@@ -151,28 +124,25 @@ async function fetchHistoricalData() {
             waterLevelHistory = data.waterLevel.map(item => item.value);
         }
         
+        if (data.lightLevel && data.lightLevel.length > 0) {
+            lightLevelHistory = data.lightLevel.map(item => item.value);
+        }
+        
+        if (data.soilMoisture && data.soilMoisture.length > 0) {
+            soilMoistureHistory = data.soilMoisture.map(item => item.value);
+        }
+        
         // Zaman etiketlerini güncelle
         if (data.temperature && data.temperature.length > 0) {
             // Zaman etiketlerini güncelle
             timeLabels = [];
             
-            // Eğer DHT11 verilerini işlediysek, sadece çift indisli zaman etiketlerini al
-            if ((!data.humidity || data.humidity.length === 0) && data.temperature.length > 1) {
-                for (let i = 0; i < data.temperature.length; i += 2) {
-                    const date = new Date(data.temperature[i].timestamp);
-                    const hours = date.getHours().toString().padStart(2, '0');
-                    const minutes = date.getMinutes().toString().padStart(2, '0');
-                    timeLabels.push(`${hours}:${minutes}`);
-                }
-            } else {
-                // Normal durumda tüm zaman etiketlerini al
-                data.temperature.forEach(item => {
-                    const date = new Date(item.timestamp);
-                    const hours = date.getHours().toString().padStart(2, '0');
-                    const minutes = date.getMinutes().toString().padStart(2, '0');
-                    timeLabels.push(`${hours}:${minutes}`);
-                });
-            }
+            data.temperature.forEach(item => {
+                const date = new Date(item.timestamp);
+                const hours = date.getHours().toString().padStart(2, '0');
+                const minutes = date.getMinutes().toString().padStart(2, '0');
+                timeLabels.push(`${hours}:${minutes}`);
+            });
         } else {
             // Varsayılan zaman etiketleri
             timeLabels = ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'];
@@ -202,7 +172,9 @@ async function fetchHistoricalData() {
         return {
             tempHistory: tempHistory,
             humidityHistory: humidityHistory,
-            waterLevelHistory: waterLevelHistory
+            waterLevelHistory: waterLevelHistory,
+            lightLevelHistory: lightLevelHistory,
+            soilMoistureHistory: soilMoistureHistory
         };
     } catch (error) {
         console.error('Geçmiş verileri alma hatası:', error);
@@ -212,9 +184,319 @@ async function fetchHistoricalData() {
         return {
             tempHistory: [],
             humidityHistory: [],
-            waterLevelHistory: []
+            waterLevelHistory: [],
+            lightLevelHistory: [],
+            soilMoistureHistory: []
         };
     }
+}
+
+/**
+ * Seçilen periyoda göre geçmiş verileri getiren fonksiyon
+ */
+async function fetchHistoricalDataByPeriod() {
+    const period = document.getElementById('historyPeriod').value;
+    const type = document.getElementById('historyType').value;
+    
+    try {
+        // Sera ID'si
+        const seraID = 1;
+        
+        console.log(`Geçmiş veriler alınıyor: ${HISTORICAL_DATA_URL}?seraID=${seraID}&hours=${period}&type=${type}`);
+        
+        const response = await fetch(`${HISTORICAL_DATA_URL}?seraID=${seraID}&hours=${period}&type=${type}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // Verileri işle ve grafiği güncelle
+        updateHistoryChart(data, type);
+        
+        showNotification('Geçmiş veriler başarıyla alındı', 'success');
+    } catch (error) {
+        console.error('Geçmiş verileri alma hatası:', error);
+        showNotification(`Geçmiş verileri alma hatası: ${error.message}`, 'danger');
+    }
+}
+
+/**
+ * Geçmiş veri grafiğini güncelleyen fonksiyon
+ * @param {Object} data - Geçmiş veriler
+ * @param {string} type - Veri tipi
+ */
+function updateHistoryChart(data, type) {
+    const canvas = document.getElementById('historyChart');
+    if (!canvas) return;
+    
+    // Canvas kontekstini al
+    const ctx = canvas.getContext('2d');
+    
+    // Eski grafiği temizle
+    if (historyChart) {
+        historyChart.destroy();
+    }
+    
+    // Veri setlerini oluştur
+    const datasets = [];
+    const labels = [];
+    
+    // Zaman etiketlerini oluştur
+    if (data.temperature && data.temperature.length > 0) {
+        data.temperature.forEach(item => {
+            const date = new Date(item.timestamp);
+            labels.push(formatDateTime(date));
+        });
+    }
+    
+    // Veri tipi "all" ise tüm verileri ekle
+    if (type === 'all' || type === 'temperature') {
+        if (data.temperature && data.temperature.length > 0) {
+            datasets.push({
+                label: 'Sıcaklık (°C)',
+                data: data.temperature.map(item => item.value),
+                borderColor: '#F44336',
+                backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                tension: 0.4,
+                fill: false
+            });
+        }
+    }
+    
+    if (type === 'all' || type === 'humidity') {
+        if (data.humidity && data.humidity.length > 0) {
+            datasets.push({
+                label: 'Nem (%)',
+                data: data.humidity.map(item => item.value),
+                borderColor: '#2196F3',
+                backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                tension: 0.4,
+                fill: false
+            });
+        }
+    }
+    
+    if (type === 'all' || type === 'light') {
+        if (data.lightLevel && data.lightLevel.length > 0) {
+            datasets.push({
+                label: 'Işık Seviyesi (%)',
+                data: data.lightLevel.map(item => item.value),
+                borderColor: '#FFC107',
+                backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                tension: 0.4,
+                fill: false
+            });
+        }
+    }
+    
+    if (type === 'all' || type === 'soil') {
+        if (data.soilMoisture && data.soilMoisture.length > 0) {
+            datasets.push({
+                label: 'Toprak Nemi (%)',
+                data: data.soilMoisture.map(item => item.value),
+                borderColor: '#4CAF50',
+                backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                tension: 0.4,
+                fill: false
+            });
+        }
+    }
+    
+    if (type === 'all' || type === 'water') {
+        if (data.waterLevel && data.waterLevel.length > 0) {
+            datasets.push({
+                label: 'Su Seviyesi (%)',
+                data: data.waterLevel.map(item => item.value),
+                borderColor: '#00BCD4',
+                backgroundColor: 'rgba(0, 188, 212, 0.1)',
+                tension: 0.4,
+                fill: false
+            });
+        }
+    }
+    
+    // Eğer veri yoksa, bir mesaj göster
+    if (datasets.length === 0) {
+        showNotification('Seçilen periyod için veri bulunamadı', 'warning');
+        return;
+    }
+    
+    // Grafiği oluştur
+    historyChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    ticks: {
+                        stepSize: 10
+                    }
+                }
+            }
+        }
+    });
+}
+
+/**
+ * Bitki bilgilerini veritabanından alan fonksiyon
+ */
+async function fetchPlantData() {
+    try {
+        // Sera ID'si
+        const seraID = 1;
+        
+        // API endpoint (örnek)
+        const PLANT_URL = `${API_BASE_URL}/get_plant_data.php?seraID=${seraID}`;
+        
+        // Bu işlev gerçekte veritabanından veri alacak, ancak şu anda örnek veri döndürüyoruz
+        // Gerçek implementasyonda bu kısmı API isteği ile değiştirin
+        return [
+            {
+                id: 1,
+                tur: "Domates",
+                bolge: "Bölge A",
+                ekim_tarihi: "2025-01-15",
+                gelisim_yuzdesi: 75,
+                tahmini_hasat: "2025-04-02"
+            },
+            {
+                id: 2,
+                tur: "Salatalık",
+                bolge: "Bölge B",
+                ekim_tarihi: "2025-02-05",
+                gelisim_yuzdesi: 65,
+                tahmini_hasat: "2025-04-10"
+            },
+            {
+                id: 3,
+                tur: "Biber",
+                bolge: "Bölge C",
+                ekim_tarihi: "2025-01-01",
+                gelisim_yuzdesi: 90,
+                tahmini_hasat: "2025-03-22"
+            }
+        ];
+    } catch (error) {
+        console.error('Bitki verilerini alma hatası:', error);
+        showNotification(`Bitki verilerini alma hatası: ${error.message}`, 'danger');
+        
+        // Hata durumunda boş dizi döndür
+        return [];
+    }
+}
+
+/**
+ * Bitki durumu sayfasını güncelleyen fonksiyon
+ */
+async function updatePlantStatusPage() {
+    const container = document.getElementById('bitki-durum-container');
+    if (!container) return;
+    
+    // Bitki verilerini al
+    const bitkiler = await fetchPlantData();
+    
+    if (bitkiler.length === 0) {
+        container.innerHTML = `
+            <div class="col-12">
+                <div class="dashboard-card">
+                    <h5>Bitki Bilgisi Bulunamadı</h5>
+                    <p>Sisteme kayıtlı bitki bulunmamaktadır.</p>
+                </div>
+            </div>
+        `;
+        return;
+    }
+    
+    // Her bitki türü için içerik oluştur
+    let html = '';
+    
+    bitkiler.forEach(bitki => {
+        const gunSayisi = Math.ceil((new Date(bitki.tahmini_hasat) - new Date()) / (1000 * 60 * 60 * 24));
+        
+        html += `
+            <div class="col-lg-4">
+                <div class="dashboard-card">
+                    <h5>${bitki.tur} Durumu (${bitki.bolge})</h5>
+                    <div class="mt-4">
+                        <div class="row align-items-center mb-4">
+                            <div class="col-md-4 text-center">
+                                <i class="fas fa-seedling fa-4x text-success mb-3"></i>
+                            </div>
+                            <div class="col-md-8">
+                                <ul class="list-unstyled">
+                                    <li><i class="fas fa-calendar me-2"></i> Ekim: ${formatDate(bitki.ekim_tarihi)}</li>
+                                    <li><i class="fas fa-percentage me-2"></i> Gelişim: %${bitki.gelisim_yuzdesi}</li>
+                                    <li><i class="fas fa-harvest me-2"></i> Tahmini Hasat: ${formatDate(bitki.tahmini_hasat)}</li>
+                                    <li><i class="fas fa-clock me-2"></i> Kalan: ${gunSayisi} gün</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar" role="progressbar" style="width: ${bitki.gelisim_yuzdesi}%" 
+                                aria-valuenow="${bitki.gelisim_yuzdesi}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+/**
+ * Dashboard'daki bitki gelişim durumu kartını güncelleyen fonksiyon
+ */
+async function updatePlantGrowthCard() {
+    const container = document.getElementById('bitki-gelistirme-container');
+    if (!container) return;
+    
+    // Bitki verilerini al
+    const bitkiler = await fetchPlantData();
+    
+    if (bitkiler.length === 0) {
+        container.innerHTML = `<div class="mb-3"><small>Kayıtlı bitki bulunamadı</small></div>`;
+        return;
+    }
+    
+    let html = '';
+    
+    bitkiler.forEach(bitki => {
+        const gunSayisi = Math.ceil((new Date(bitki.tahmini_hasat) - new Date()) / (1000 * 60 * 60 * 24));
+        
+        html += `
+            <div class="mb-3">
+                <small>${bitki.tur} (${bitki.bolge})</small>
+                <div class="progress">
+                    <div class="progress-bar" role="progressbar" style="width: ${bitki.gelisim_yuzdesi}%" 
+                        aria-valuenow="${bitki.gelisim_yuzdesi}" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <small>Büyüme: %${bitki.gelisim_yuzdesi}</small>
+                    <small>Est. Hasat: ${gunSayisi} gün</small>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
 }
 
 /**
@@ -233,10 +515,14 @@ function updateDashboard(data) {
     // Su seviyesi göstergesini güncelle
     updateWaterLevelGauge(data.waterLevel);
     
+    // CO2 seviyesini güncelle (ESP32 kodundan gelen değer - simüle edilmiş)
+    updateCO2Gauge(data.lightLevel ? (data.lightLevel * 10) + 400 : null);
+    
     // Sıcaklık ve Nem sayfalarındaki mevcut değerleri güncelle
     updateSensorDisplayPage('temperature', data.temperature, '°C', data.lastUpdated);
     updateSensorDisplayPage('humidity', data.humidity, '%', data.lastUpdated);
     updateSensorDisplayPage('water-level', data.waterLevel, '%', data.lastUpdated);
+    updateSensorDisplayPage('light-level', data.lightLevel, ' lux', data.lastUpdated);
     
     // Sistem durumunu güncelle
     updateSystemStatus(data);
@@ -306,6 +592,33 @@ function updateSensorDisplayPage(sensorId, value, unit, lastUpdated) {
 }
 
 /**
+ * CO2 seviyesi göstergesini güncelleyen fonksiyon
+ * @param {number} co2Level - CO2 seviyesi (ppm)
+ */
+function updateCO2Gauge(co2Level) {
+    const co2Fill = document.getElementById('co2Fill');
+    const co2Indicator = document.getElementById('co2Indicator');
+    const co2Value = document.getElementById('co2-value');
+    
+    if (!co2Fill || !co2Indicator || !co2Value) return;
+    
+    if (co2Level !== null && co2Level !== undefined) {
+        // CO2 seviyesi değerini ayarla (400-2000 ppm aralığında)
+        const co2Percentage = Math.min(Math.max((co2Level - 400) / 1600, 0), 1) * 100;
+        const co2Angle = (co2Percentage / 100) * 180;
+        
+        co2Fill.style.height = `${co2Percentage}%`;
+        co2Indicator.style.transform = `rotate(${co2Angle}deg)`;
+        co2Value.textContent = `${Math.round(co2Level)} ppm`;
+    } else {
+        // Veri yoksa belirsiz göster
+        co2Fill.style.height = '0%';
+        co2Indicator.style.transform = 'rotate(0deg)';
+        co2Value.textContent = `-- ppm`;
+    }
+}
+
+/**
  * Su seviyesi göstergesini güncelleyen fonksiyon
  * @param {number} waterLevel - Su seviyesi (%)
  */
@@ -314,6 +627,7 @@ function updateWaterLevelGauge(waterLevel) {
     const waterLevelIndicator = document.getElementById('waterLevelIndicator');
     const waterLevelValue = document.getElementById('water-level-value');
     const waterLevelStatus = document.getElementById('water-level-status');
+    const waterLevelAlert = document.getElementById('water-level-alert');
     
     if (!waterLevelFill || !waterLevelIndicator || !waterLevelValue || !waterLevelStatus) return;
     
@@ -340,6 +654,20 @@ function updateWaterLevelGauge(waterLevel) {
         
         waterLevelStatus.innerHTML = `Durum: <span class="${statusClass}">${status}</span>`;
         
+        // Su seviyesi uyarısını güncelle
+        if (waterLevelAlert) {
+            if (waterLevelPercentage < 20) {
+                waterLevelAlert.className = 'alert alert-danger';
+                waterLevelAlert.innerHTML = `<strong>Kritik:</strong> Su seviyesi çok düşük (%${waterLevelPercentage.toFixed(0)}). Acilen doldurun!`;
+            } else if (waterLevelPercentage < 40) {
+                waterLevelAlert.className = 'alert alert-warning';
+                waterLevelAlert.innerHTML = `<strong>Uyarı:</strong> Su seviyesi düşük (%${waterLevelPercentage.toFixed(0)}). Yakında doldurulması gerekebilir.`;
+            } else {
+                waterLevelAlert.className = 'alert alert-success';
+                waterLevelAlert.innerHTML = `<strong>Normal:</strong> Su seviyesi yeterli (%${waterLevelPercentage.toFixed(0)}).`;
+            }
+        }
+        
         // Su sistemi durumunu güncelle
         const waterSystemStatus = document.getElementById('water-system-status');
         if (waterSystemStatus) {
@@ -351,6 +679,11 @@ function updateWaterLevelGauge(waterLevel) {
         waterLevelIndicator.style.transform = 'rotate(0deg)';
         waterLevelValue.textContent = `--%`;
         waterLevelStatus.textContent = `Durum: Veri alınamıyor`;
+        
+        if (waterLevelAlert) {
+            waterLevelAlert.className = 'alert alert-info';
+            waterLevelAlert.innerHTML = 'Su seviyesi bilgisi yükleniyor...';
+        }
     }
 }
 
@@ -663,6 +996,8 @@ function toggleSidebar() {
     const mainContent = document.querySelector('.main-content');
     const topbar = document.querySelector('.topbar');
     
+    if (!sidebar || !mainContent || !topbar) return;
+    
     if (sidebar.style.width === '250px' || sidebar.style.width === '') {
         sidebar.style.width = '70px';
         mainContent.style.marginLeft = '70px';
@@ -725,9 +1060,12 @@ function toggleSidebar() {
  */
 function initDashboard() {
     // Sidebar toggle
-    document.querySelector('.toggle-menu').addEventListener('click', function() {
-        toggleSidebar();
-    });
+    const toggleMenuButton = document.querySelector('.toggle-menu');
+    if (toggleMenuButton) {
+        toggleMenuButton.addEventListener('click', function() {
+            toggleSidebar();
+        });
+    }
     
     // Topbar'ın genişliğini ayarla
     const sidebar = document.querySelector('.sidebar');
@@ -838,8 +1176,51 @@ function initDashboard() {
         });
     }
     
+    // Geçmiş Veriler Grafiği
+    const historyChartCtx = document.getElementById('historyChart');
+    if (historyChartCtx) {
+        const ctx = historyChartCtx.getContext('2d');
+        historyChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Veriler',
+                        data: [],
+                        borderColor: '#4CAF50',
+                        backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                        tension: 0.4,
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        ticks: {
+                            stepSize: 10
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
     // Başlangıç verilerini al ve güncelleme döngüsünü başlat
     updateRealTimeData();
+    
+    // Bitki durumlarını güncelle
+    updatePlantStatusPage();
+    updatePlantGrowthCard();
     
     // İlk aktivite günlüğü oluştur
     addActivityLog('Sistem Başlatıldı', 'Tamamlandı');
@@ -862,7 +1243,7 @@ async function updateRealTimeData() {
         // Grafikleri güncelle
         updateCharts(historicalData);
         
-        // 10 saniyede bir güncelle (bu değeri değiştirebilirsiniz)
+        // 10 saniyede bir güncelle
         setTimeout(updateRealTimeData, 10000);
     } catch (error) {
         console.error('Veri güncelleme hatası:', error);
@@ -985,6 +1366,23 @@ function formatDateTime(date) {
         day: '2-digit',
         hour: '2-digit',
         minute: '2-digit'
+    });
+}
+
+/**
+ * Tarih formatı yardımcı fonksiyonu
+ * @param {Date|string} date - Tarih
+ * @returns {string} - Formatlanmış tarih
+ */
+function formatDate(date) {
+    if (!(date instanceof Date)) {
+        date = new Date(date);
+    }
+    
+    return date.toLocaleString('tr-TR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
     });
 }
 
